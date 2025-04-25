@@ -1,0 +1,12 @@
+/* Expletus Sans Font */
+@font-face {
+    font-family: 'Expletus Sans';
+    src: url('../fonts/ExpletusSans.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+.expletus {
+    font-family: 'Expletus Sans', sans-serif;
+}

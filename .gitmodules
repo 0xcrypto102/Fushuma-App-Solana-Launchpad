@@ -1,0 +1,3 @@
+[submodule "submodules/solana-ico-launchpad"]
+	path = submodules/solana-ico-launchpad
+	url = https://github.com/Fushuma/Fushuma-solana-ico-launchpad.git
