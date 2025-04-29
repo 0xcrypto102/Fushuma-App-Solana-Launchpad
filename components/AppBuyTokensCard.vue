@@ -57,14 +57,20 @@
     const bonusProgressValue = computed(() => {
         if (isSetPurchasePrice) {
             if (!icoInfo.data || !price.value?.availableAmount || !tokensToPurchase.value) return 0;
+            if( price.value.availableAmount < tokensToPurchase.value) return 0;
+            if (icoInfo.data.bonusReserve === 0) return 0;
+
             const bonusAmount = Math.min(price.value.availableAmount * (icoInfo.data.bonusPercentage / 100 / 100),
                 icoInfo.data.bonusReserve / icoInfo.data.icoDecimals
             )
             const maxAmount = icoInfo.data.bonusReserve / icoInfo.data.icoDecimals;
-            
+
             return Math.min((bonusAmount / maxAmount) * 100, 100);
         } else {
             if (!icoInfo.data || !purchaseAmount.value || !tokensToPurchase.value) return 0;
+            if (tokensToPurchase.value > purchaseAmount.value) return 0;
+            if (icoInfo.data.bonusReserve === 0) return 0;
+
             const bonusAmount = Math.min(purchaseAmount.value * (icoInfo.data.bonusPercentage / 100 / 100),
                 icoInfo.data.bonusReserve / icoInfo.data.icoDecimals
             )
