@@ -1,4 +1,4 @@
-import type { IIcoInfoWithKey } from "~/types/Ico";
+import type { IIcoInfoWithKey, IPurchaseAmount } from "~/types/Ico";
 import LaunchpadABI from '@/abis/Launchpad.json';
 import Web3 from 'web3';
 
@@ -57,6 +57,49 @@ export async function fetchICO(launchpadContract: any, index: string): Promise<I
   } catch (err) {
     console.error('Failed to fetch ICO:', err);
     return null;
+  }
+}
+
+export async function getEvmCostInfo(launchpadContract:any, id: number, amount: BigInt) : Promise<IPurchaseAmount | null>  {
+  try {
+    if(!id && id <0 ) return null;
+    const ico = await launchpadContract.methods.getValue(id, amount).call();
+    const { 0: availableAmount, 1: value } = ico;
+    
+    return {
+      value,
+      availableAmount
+    };
+  } catch (error) {
+    console.error('Failed to get EVM Cost Info', error);
+    return null;
+  }
+}
+
+export async function getPurchaseAmount(launchpadContract: any, index: number) {
+  const ico = await launchpadContract.methods.getICO(index).call();
+  const { 0: params, 1: state } = ico;
+  
+}
+
+export async function evmBuyToken(launchpadContract: any, id: number, amount: number, buyer: string) {
+  try {
+    console.log('Call Buy Token function');
+    const gasPrice = (await web3.eth.getGasPrice()).toString();
+
+    const estimatedGas = await launchpad.methods
+      .buyToken(id, amount, buyer)
+      .estimateGas({ from: buyer });
+
+    const tx = await launchpad.methods.buyToken(id, amount, buyer).send({
+      from: buyer,
+      gas: estimatedGas.toString(),
+      gasPrice,
+    });
+    return tx;
+  } catch (error) {
+    console.error('EVM Buy Token failed:', error);
+    throw error;
   }
 }
 

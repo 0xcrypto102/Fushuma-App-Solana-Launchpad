@@ -179,25 +179,24 @@
     const currentPrice = ref(new DataWrapper<number>());
     const availableAmount = ref(new DataWrapper<number>());
 
-    // const fetchCurrentPrice = async () => {
-    //     if (
-    //         (icoInfo.value.data && status.value.status === IcoStatus.Live) ||
-    //         status.value.status === IcoStatus.Upcoming
-    //     ) {
-    //         try {
-    //             const { value, availableAmount: aa } = await SolanaIcoLaunchpad.getPurchaseAmount({
-    //                 icoPot: new web3.PublicKey(icoPot.value),
-    //                 amount: icoInfo.value.data!.icoDecimals,
-    //             });
+    const fetchCurrentPrice = async () => {
+        if (
+            (icoInfo.value.data && status.value.status === IcoStatus.Live) ||
+            status.value.status === IcoStatus.Upcoming
+        ) {
+            const tokenSoldAmount = icoInfo.value.data?.totalSold;
+            const startPrice = icoInfo.value.data?.startPrice;
+            const endPrice = icoInfo.value.data?.endPrice;
+            const total = icoInfo.value.data?.amount;
 
-    //             currentPrice.value.setData(value / icoInfo.value.data!.icoDecimals);
-    //             availableAmount.value.setData(aa / icoInfo.value.data!.icoDecimals);
-    //         } catch (e) {
-    //             console.error(e);
-    //             currentPrice.value.setError();
-    //         }
-    //     }
-    // };
+            if(Number(endPrice) == 0) {
+                currentPrice.value.setData(Number(startPrice) / icoInfo.value.data!.icoDecimals);
+            } else {
+                const increasePrice = startPrice + (endPrice - startPrice) * tokenSoldAmount / total;
+                currentPrice.value.setData(Number(increasePrice) / icoInfo.value.data!.icoDecimals);
+            }
+        }
+    };
 
     const fetchUserPurchases = async () => {
         if (ethAddress.value) {
@@ -240,7 +239,7 @@
                 if(!i) return
                 icoInfo.value.setData(i.data);
 
-                // await fetchCurrentPrice();
+                await fetchCurrentPrice();
             } catch (e) {
                 console.log(e);
             }
