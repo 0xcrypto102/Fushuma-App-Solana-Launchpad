@@ -89,8 +89,11 @@
   import { ref, onMounted } from 'vue';
   import LaunchpadABI from '@/abis/Launchpad.json';
   import ERC20ABI from '@/abis/ERC20.json';
-  import { launchpadAddress } from '~/js/ico-evm';
+  import { proxyAddress } from '~/js/ico-evm';
+  import { ethers } from 'ethers';
+  import { useRouter } from 'vue-router'
 
+  const router = useRouter()
   const web3 = new Web3(window.ethereum);
   // const tokenAddress = '0x24Eb18b226e41D1186955A95EAe81b2d9Efd731D';
   const ethAddress = ref<string | null>(null);
@@ -118,62 +121,59 @@
   });
 
 const approveToken = async () => {
-  if(!ethAddress.value) return
-  const token = new web3.eth.Contract(ERC20ABI, icoForm.value.token);
+  try {
+    if(!ethAddress.value) return
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+    const signer = await provider.getSigner();
+    const token = new ethers.Contract(icoForm.value.token, ERC20ABI, signer);
+    const total = web3.utils.toWei((Number(icoForm.value.amount) + Number(icoForm.value.bonusReserve)).toString(), 'ether');
 
-  const total = web3.utils.toWei((Number(icoForm.value.amount) + Number(icoForm.value.bonusReserve)).toString(), 'ether');
-  const gasPrice = (await web3.eth.getGasPrice()).toString();
-  const estimatedGas = await token.methods
-    .approve(launchpadAddress, total)
-    .estimateGas({ from: ethAddress.value });
-
-  await token.methods.approve(launchpadAddress, total).send({
-    from: ethAddress.value,
-    gas: estimatedGas.toString(),
-    gasPrice,
-  });
+    const tx = await token.approve(proxyAddress, total);
+    const result = await tx.wait();
+    if (result) {
+      return result
+    }
+  } catch (error) {
+    console.log("error: error");
+  }
 };
 
 const createICO = async () => {
-  if(!ethAddress.value) return
-  const launchpad = new web3.eth.Contract(LaunchpadABI, launchpadAddress);
-  await approveToken();
-
-  const icoParams = {
-    token: icoForm.value.token,
-    paymentToken: icoForm.value.paymentToken,
-    amount: (web3.utils.toWei(icoForm.value.amount, 'ether')),
-    startPrice: (web3.utils.toWei(icoForm.value.startPrice, 'ether')),
-    endPrice: (web3.utils.toWei(icoForm.value.endPrice, 'ether')),
-    startDate: +icoForm.value.startDate,
-    endDate: +icoForm.value.endDate,
-    bonusReserve: (web3.utils.toWei(icoForm.value.bonusReserve, 'ether')),
-    bonusPercentage: +icoForm.value.bonusPercentage,
-    bonusActivator: +icoForm.value.bonusActivator,
-    vestingParams: {
-      unlockPercentage: +icoForm.value.unlockPercentage,
-      cliffPeriod: +icoForm.value.cliffPeriod,
-      vestingPercentage: +icoForm.value.vestingPercentage,
-      vestingInterval: +icoForm.value.vestingInterval
-    }
-  };
-  console.log(icoParams);
   try {
-    const gasPrice = (await web3.eth.getGasPrice()).toString();
-    console.log(gasPrice);
-
-    const estimatedGas = await launchpad.methods
-      .createICO(icoParams)
-      .estimateGas({ from: ethAddress.value });
-
-    console.log(estimatedGas);
+    if(!ethAddress.value) return
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+    const signer = await provider.getSigner();
+    const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
     
-    const tx = await launchpad.methods.createICO(icoParams).send({
-      from: ethAddress.value,
-      gas: estimatedGas.toString(),
-      gasPrice,
-    });
+    await approveToken();
+
+    const icoParams = {
+      token: icoForm.value.token,
+      paymentToken: icoForm.value.paymentToken,
+      amount: (web3.utils.toWei(icoForm.value.amount, 'ether')),
+      startPrice: (web3.utils.toWei(icoForm.value.startPrice, 'ether')),
+      endPrice: (web3.utils.toWei(icoForm.value.endPrice, 'ether')),
+      startDate: +icoForm.value.startDate,
+      endDate: +icoForm.value.endDate,
+      bonusReserve: (web3.utils.toWei(icoForm.value.bonusReserve, 'ether')),
+      bonusPercentage: +icoForm.value.bonusPercentage,
+      bonusActivator: +icoForm.value.bonusActivator,
+      vestingParams: {
+        unlockPercentage: +icoForm.value.unlockPercentage,
+        cliffPeriod: +icoForm.value.cliffPeriod,
+        vestingPercentage: +icoForm.value.vestingPercentage,
+        vestingInterval: +icoForm.value.vestingInterval
+      }
+    };
+    console.log(icoParams);
+  
+    const tx = await proxyAsLaunchpad.createICO(icoParams);
     console.log("transaction hash is ", tx);
+    if ( await tx.wait()) {
+      router.push('/')
+    }
   } catch (err:any) {
     console.error("Create ICO failed:", err);
     alert("Create ICO failed: " + (err.message || "Unknown error"));

@@ -1,6 +1,35 @@
 import type { IIcoInfoWithKey, IPurchaseAmount } from "~/types/Ico";
 import LaunchpadABI from '@/abis/Launchpad.json';
 import Web3 from 'web3';
+import { ethers } from 'ethers';
+
+// Proxy address (where calls are delegated through)
+export const proxyAddress = '0x206236eca2dF8FB37EF1d024e1F72f4313f413E4';
+
+// Provider (Infura, Alchemy, or Metamask provider)
+// Use with ethers.js v6
+const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+
+// Connect the proxy address using the implementation ABI
+export const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, provider);
+
+export function getMetaMaskEthereum(): any {
+  const providers = window?.ethereum?.providers;
+
+  // If multiple providers exist (MetaMask, Phantom, Brave, etc.)
+  if (providers?.length) {
+    const metamaskProvider = providers.find((p: { isMetaMask: any; }) => p.isMetaMask);
+    if (!metamaskProvider) throw new Error('MetaMask provider not found');
+    return metamaskProvider;
+  }
+
+  // Fallback: window.ethereum is MetaMask
+  if (window.ethereum?.isMetaMask) {
+    return window.ethereum;
+  }
+
+  throw new Error('MetaMask not found');
+}
 
 function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWithKey {
     return {
@@ -31,13 +60,13 @@ function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWi
     };
 }
 
-export async function fetchAllICOs(launchpadContract: any): Promise<IIcoInfoWithKey[]> {
+export async function fetchAllICOs(): Promise<IIcoInfoWithKey[]> {
     try {
-      const total = await launchpadContract.methods.counter().call();
+      const total = await proxyAsLaunchpad.counter();
       const results: IIcoInfoWithKey[] = [];
   
       for (let i = 0; i < Number(total); i++) {
-        const ico = await launchpadContract.methods.getICO(i).call();
+        const ico = await proxyAsLaunchpad.getICO(i);
         const { 0: params, 1: state } = ico;
         results.push(mapEvmIcoToIIcoInfo(i, params, state));
       }
@@ -49,9 +78,9 @@ export async function fetchAllICOs(launchpadContract: any): Promise<IIcoInfoWith
     }
 }
 
-export async function fetchICO(launchpadContract: any, index: string): Promise<IIcoInfoWithKey | null> {
+export async function fetchICO(index: string): Promise<IIcoInfoWithKey | null> {
   try {
-    const ico = await launchpadContract.methods.getICO(index).call();
+    const ico = await proxyAsLaunchpad.getICO(index);
     const { 0: params, 1: state } = ico;
     return mapEvmIcoToIIcoInfo(Number(index), params, state);
   } catch (err) {
@@ -60,10 +89,10 @@ export async function fetchICO(launchpadContract: any, index: string): Promise<I
   }
 }
 
-export async function getEvmCostInfo(launchpadContract:any, id: number, amount: BigInt) : Promise<IPurchaseAmount | null>  {
+export async function getEvmCostInfo(id: number, amount: BigInt) : Promise<IPurchaseAmount | null>  {
   try {
     if(!id && id <0 ) return null;
-    const ico = await launchpadContract.methods.getValue(id, amount).call();
+    const ico = await proxyAsLaunchpad.getValue(id, amount);
     const { 0: availableAmount, 1: value } = ico;
     
     return {
@@ -76,34 +105,9 @@ export async function getEvmCostInfo(launchpadContract:any, id: number, amount: 
   }
 }
 
-export async function getPurchaseAmount(launchpadContract: any, index: number) {
-  const ico = await launchpadContract.methods.getICO(index).call();
+export async function getPurchaseAmount(index: number) {
+  const ico = await proxyAsLaunchpad.getICO(index);
   const { 0: params, 1: state } = ico;
   
 }
-
-export async function evmBuyToken(launchpadContract: any, id: number, amount: number, buyer: string) {
-  try {
-    console.log('Call Buy Token function');
-    const gasPrice = (await web3.eth.getGasPrice()).toString();
-
-    const estimatedGas = await launchpad.methods
-      .buyToken(id, amount, buyer)
-      .estimateGas({ from: buyer });
-
-    const tx = await launchpad.methods.buyToken(id, amount, buyer).send({
-      from: buyer,
-      gas: estimatedGas.toString(),
-      gasPrice,
-    });
-    return tx;
-  } catch (error) {
-    console.error('EVM Buy Token failed:', error);
-    throw error;
-  }
-}
-
-const web3 = new Web3(window.ethereum);
-export const launchpadAddress = '0x6Dd2CD52042439629ccC58dA3BCdBA1B9A24840B';
-export const launchpad = new web3.eth.Contract(LaunchpadABI, launchpadAddress);
 

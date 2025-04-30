@@ -127,7 +127,7 @@
 <script setup lang="ts">
     // import { SolanaIcoLaunchpad } from '@/js/ico';
     import { DataWrapper } from '@/types/DataWrapper';
-    import { fetchICO, launchpad } from '~/js/ico-evm';
+    import { fetchICO } from '~/js/ico-evm';
     import { type IIcoInfo, type IUserPurchaseWithKey } from '~/types/Ico';
     import AppUserPurchasesTable, { type IClaimContext } from '~/components/AppUserPurchasesTable.vue';
     import AppBuyTokensCard from '~/components/AppBuyTokensCard.vue';
@@ -188,12 +188,16 @@
             const startPrice = icoInfo.value.data?.startPrice;
             const endPrice = icoInfo.value.data?.endPrice;
             const total = icoInfo.value.data?.amount;
-
+            
             if(Number(endPrice) == 0) {
                 currentPrice.value.setData(Number(startPrice) / icoInfo.value.data!.icoDecimals);
             } else {
-                const increasePrice = startPrice + (endPrice - startPrice) * tokenSoldAmount / total;
-                currentPrice.value.setData(Number(increasePrice) / icoInfo.value.data!.icoDecimals);
+                if(startPrice == undefined || endPrice == undefined || tokenSoldAmount == undefined || total == undefined) return;
+                // Linear increase formula (all in BigInt)
+                const increase = BigInt(startPrice) + ((BigInt(endPrice) - BigInt(startPrice)) * BigInt(tokenSoldAmount)) / BigInt(total);
+                // Convert BigInt to Number (only if safe to do so)
+                const priceAsNumber = Number(increase) / icoInfo.value.data!.icoDecimals;
+                currentPrice.value.setData(priceAsNumber);
             }
         }
     };
@@ -234,7 +238,7 @@
         if (ethAddress.value) {
             try {
                 const index = icoPot.value.toString().split("-")[1];
-                const i = await fetchICO(launchpad, index);
+                const i = await fetchICO(index);
 
                 if(!i) return
                 icoInfo.value.setData(i.data);

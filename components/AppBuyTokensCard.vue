@@ -7,10 +7,11 @@
     import { IcoStatus } from '~/js/utils';
     import { convertTokenIfAvailableWithFormatting } from '~/js/tokens';
     import type { DataWrapper } from '~/types/DataWrapper';
-    import { evmBuyToken, getEvmCostInfo, launchpad, launchpadAddress } from '~/js/ico-evm';
     import Web3 from 'web3';
+    import { proxyAsLaunchpad, getEvmCostInfo, proxyAddress, getMetaMaskEthereum } from '~/js/ico-evm';
     import { ethers } from 'ethers';
     import LaunchpadABI from '@/abis/Launchpad.json';
+    import ERC20ABI from '@/abis/ERC20.json';
 
     const evmWeb3 = new Web3(window.ethereum);
     const balanceStore = useBalanceStore();
@@ -83,13 +84,12 @@
     const getPrice = async (tokensAmount?: number) => {
         if (tokensAmount) {
             isPriceLoading.value = true;
-
             try {
                 if (evmMemo) {
                     const id = icoPot.split("-")[1];
                     const decimals = BigInt(icoInfo.data!.icoDecimals);
                     const amount = BigInt(tokensAmount) * decimals;
-                    const p = await getEvmCostInfo(launchpad, Number(id), amount);
+                    const p = await getEvmCostInfo(Number(id), amount);
 
                     if (!p) throw new Error("Failed to fetch EVM cost info");
                     if(!id && Number(id) <0 ) return null;
@@ -136,17 +136,49 @@
         () => {
             if (purchasePrice.value && currentPrice.data) {
                 const totalPriceDecimals = purchasePrice.value;
-                const tokensAmount = Math.round(totalPriceDecimals / currentPrice.data);
 
-                price.value.availableAmount = tokensAmount;
-                price.value.value = purchasePrice.value;
-                console.log(price.value.availableAmount);
-
+                if(Number(icoInfo.data?.endPrice) == 0) {
+                    const tokensAmount = Math.round(totalPriceDecimals / currentPrice.data);
+                    price.value.availableAmount = tokensAmount;
+                    price.value.value = purchasePrice.value;
+                } else {
+                    const startPrice = currentPrice.data;
+                    const endPrice = Number(icoInfo.data?.endPrice) / (icoInfo.data?.icoDecimals);
+                    const maxTokens = icoInfo.data.amount / icoInfo.data?.icoDecimals;
+                    const payToBuy = calculateBuyAmount(totalPriceDecimals, startPrice, endPrice, maxTokens);
+                    price.value.availableAmount = payToBuy;
+                    price.value.value = purchasePrice.value;
+                }
                 // getPrice(tokensAmount);
             }
         },
         { immediate: true },
     );
+
+    function calculateBuyAmount(paidAmount: number, startPrice: number, endPrice: number, maxTokens: number): number {
+        console.log("paidAmount->", paidAmount);
+        console.log("startPrice->", startPrice);
+        console.log("endPrice->", endPrice);
+        console.log("maxTokens->", maxTokens);
+
+        const A = 0.5 * (endPrice - startPrice) / maxTokens;
+        const B = startPrice;
+
+        const D = B * B + 4 * A * paidAmount;
+        if (D < 0) return 0;
+
+        const n = (-B + Math.sqrt(D)) / (2 * A);
+        return n; // token amount user can buy
+    }
+
+    const slicedAvailableAmount = computed({
+        get: () => {
+            return price.value.availableAmount.toFixed(4); // or format however you like
+        },
+        set: (val) => {
+            price.value.availableAmount = Number(val);
+        }
+    });
 
     const buy = async () => {
         if (!price.value.availableAmount) return;
@@ -156,49 +188,83 @@
         try {
             if(evmMemo) {
                 const id = icoPot.split("-")[1];
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
+                // 1. Connect to MetaMask
+                const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+                await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+
+                // 2. Get signer
+                const signer = await provider.getSigner();
+                // 3. Use signer with your proxy contract
+                const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
+
                 // Send the transaction with the correct parameters
                 try {
-                    const gasPrice = await evmWeb3.eth.getGasPrice();
-                    // Calculate the value to send with the transaction
-                    console.log(price.value,"sdfsdf");
-                    const valueToSend = evmWeb3.utils.toWei(price.value.value, 'ether');
                     // Estimate gas without including 'value' in the function arguments
-                    const amountToBuy = evmWeb3.utils.toWei(price.value.availableAmount, 'ether');
-                    const buyerAddress = account;
-                    const { availableAmount, value: amountToPay } = await launchpad.methods.getValue(id, amountToBuy).call();
+                    if(icoInfo?.data?.costMint == "0x0000000000000000000000000000000000000000") {
+                        const amountToBuy = price.value.availableAmount * icoInfo.data.icoDecimals;
+                        const { availableAmount, value: amountToPay } = await proxyAsLaunchpad.getValue(id, amountToBuy.toString());
 
-                    const { startDate, endDate } = await launchpad.methods.icoParams(id).call();
-                    const { isClosed } = await launchpad.methods.icoState(id).call();
-                    const now = Math.floor(Date.now() / 1000); // current timestamp
+                        const { startDate, endDate } = await proxyAsLaunchpad.icoParams(id);
+                        const { isClosed } = await proxyAsLaunchpad.icoState(id);
+                        const now = Math.floor(Date.now() / 1000); // current timestamp
 
-                    if (now < startDate) {
-                        console.error('ICO is not started yet');
+                        if (now < startDate) {
+                            console.error('ICO is not started yet');
+                        }
+                        if (Number(endDate) !== 0 && now > endDate) {
+                            console.error('ICO already finished');
+                        }
+                        if (isClosed) {
+                            console.error('ICO is closed');
+                        }
+
+                        // Send transaction with overrides
+                        const tx = await proxyAsLaunchpad.buyToken(
+                            id,
+                            amountToBuy.toString(),
+                            signer,
+                            {
+                                value: amountToPay.toString(),
+                            }
+                        );
+
+                        console.log("Transaction hash is", tx.hash);
+                    } else {
+                        const tokenAddress = icoInfo?.data?.costMint;
+                        const token = new ethers.Contract(tokenAddress, ERC20ABI, signer);
+
+                        const amountToBuy = evmWeb3.utils.toWei(price.value.availableAmount, 'ether');
+                        const { availableAmount, value: amountToPay } = await proxyAsLaunchpad.getValue(id, amountToBuy);
+
+                        console.log("availableAmount->", availableAmount);
+                        console.log("amountToPay->", amountToPay);
+
+                        const approveTx = await token.approve(proxyAddress, amountToPay);
+                        const { startDate, endDate } = await proxyAsLaunchpad.icoParams(id);
+                        const { isClosed } = await proxyAsLaunchpad.icoState(id);
+                        const now = Math.floor(Date.now() / 1000); // current timestamp
+
+                        if (now < startDate) {
+                            console.error('ICO is not started yet');
+                        }
+                        if (Number(endDate) !== 0 && now > endDate) {
+                            console.error('ICO already finished');
+                        }
+                        if (isClosed) {
+                            console.error('ICO is closed');
+                        }
+
+                        if(await approveTx.wait()) {
+                            // Send transaction with overrides
+                            const tx = await proxyAsLaunchpad.buyToken(
+                                id,
+                                amountToBuy,
+                                signer
+                            );
+                            console.log("Transaction hash is", tx.hash);
+                        }
                     }
-                    if (Number(endDate) !== 0 && now > endDate) {
-                        console.error('ICO already finished');
-                    }
-                    if (isClosed) {
-                        console.error('ICO is closed');
-                    }
-
-                    const estimatedGas = await launchpad.methods.buyToken(id, amountToBuy, buyerAddress).estimateGas({
-                        from: buyerAddress,
-                        value: amountToPay
-                    });
-
-                    const tx = await launchpad.methods.buyToken(
-                        id,
-                        amountToBuy,
-                        buyerAddress
-                    ).send({
-                        from: buyerAddress,
-                        value: amountToPay,  
-                        gasPrice: gasPrice,
-                        gas: Math.floor(estimatedGas * 1.2)
-                    });
-                    console.log("Transaction hash is ", tx);
+                    
                 } catch (error) {
                     console.log("error", error);
                 }
@@ -365,7 +431,7 @@
                         }"
                         variant="subtle"
                         readonly
-                        v-model="price.availableAmount"
+                        v-model="slicedAvailableAmount"
                     >
                         <template #decrement>
                             <span />
