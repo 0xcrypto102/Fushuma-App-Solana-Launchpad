@@ -481,18 +481,6 @@
                 <UFormField v-if="evmMemo" required label="EVM Chain Address">
                     <UInput class="w-full text-center" v-model="evmChainAddress" />
                 </UFormField>
-                <!-- <UButton
-                    :class="!purchaseAmount || (isLoading && 'cursor-not-allowed')"
-                    :loading="isLoading"
-                    class="w-fit max-h-[48px] h-[36px] px-6 dark:text-white"
-                    :disabled="
-                        (isSetPurchasePrice ? !purchasePrice : !purchaseAmount) ||
-                        isLoading ||
-                        (evmMemo && evmChainAddress === '')
-                    "
-                    @click="buy"
-                    >Buy token</UButton
-                > -->
                 <UButton
                     :class="!purchaseAmount || (isLoading && 'cursor-not-allowed')"
                     :loading="isLoading"

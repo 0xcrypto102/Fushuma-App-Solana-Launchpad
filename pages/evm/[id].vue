@@ -34,52 +34,7 @@
                     >
                 </div>
             </div>
-
-            <!-- <div class="bg-white p-4 shadow-sm mb-9" v-if="launchpadData">
-                <div class="flex flex-col md:flex-row justify-between items-center md:items-start">
-                    <div class="flex items-center mb-4 md:mb-0">
-                        <div v-if="launchpadData.projectLogo" class="mr-2">
-                            <img
-                                :src="launchpadData.projectLogo"
-                                alt="Project Logo"
-                                class="w-8 h-8 rounded-full object-contain"
-                            />
-                        </div>
-                        <div>
-                            <h2 class="text-xl font-bold expletus">{{ launchpadData.name }}</h2>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-3">
-                        <a
-                            v-if="launchpadData.links?.web"
-                            :href="launchpadData.links.web.url"
-                            target="_blank"
-                            class="text-gray-600 hover:text-primary-500 dark:text-gray-400 dark:hover:text-primary-400"
-                        >
-                            <UIcon name="i-heroicons-globe-alt" class="w-5 h-5" />
-                        </a>
-                        <a
-                            v-if="launchpadData.links?.x"
-                            :href="launchpadData.links.x.url"
-                            target="_blank"
-                            class="text-gray-600 hover:text-primary-500 dark:text-gray-400 dark:hover:text-primary-400"
-                        >
-                            <UIcon name="simple-icons:x" class="w-4 h-4" />
-                        </a>
-                        <a
-                            v-if="launchpadData.links?.telegram"
-                            :href="launchpadData.links.telegram.url"
-                            target="_blank"
-                            class="text-gray-600 hover:text-primary-500 dark:text-gray-400 dark:hover:text-primary-400"
-                        >
-                            <UIcon name="i-heroicons-paper-airplane" class="w-5 h-5" />
-                        </a>
-                    </div>
-                </div>
-                <div class="text-sm text-gray-500 pt-2">{{ launchpadData.description }}</div>
-            </div> -->
-
+           
             <div class="flex">
                 <AppStateCard v-if="!hasConnectedWallet" class="mt-6 text-center"
                     >Please connect your wallet</AppStateCard
@@ -110,16 +65,27 @@
                     </div>
                 </div>
             </div>
-            <!-- <div v-if="hasConnectedWallet" class="mb-12">
-                <AppSubtitle title="Your purchases" class="mb-5 mt-9 text-center md:text-start" />
+          
+            <div class="mt-6 flex flex-col md:flex-row gap-4">
+                <UButton
+                    color="error"
+                    icon="i-lucide-shield"
+                    @click="handleRescueTokens"
+                    class="w-full md:w-auto"
+                >
+                    Rescue Tokens
+                </UButton>
 
-                <AppUserPurchasesTable
-                    :user-purchases="userPurchases.data"
-                    :user-purchases-fetched="userPurchases.fetched"
-                    :ico="icoInfo.data"
-                    @claim="claimTokens"
-                />
-            </div> -->
+                <UButton
+                    v-if="isOwner"
+                    color="success"
+                    icon="i-lucide-check-circle"
+                    @click="handleCloseICO"
+                    class="w-full md:w-auto"
+                >
+                    Close ICO
+                </UButton>
+            </div>
         </div>
     </div>
 </template>
@@ -127,24 +93,24 @@
 <script setup lang="ts">
     // import { SolanaIcoLaunchpad } from '@/js/ico';
     import { DataWrapper } from '@/types/DataWrapper';
-    import { fetchICO } from '~/js/ico-evm';
+    import { fetchICO, getMetaMaskEthereum, proxyAddress } from '~/js/ico-evm';
     import { type IIcoInfo, type IUserPurchaseWithKey } from '~/types/Ico';
-    import AppUserPurchasesTable, { type IClaimContext } from '~/components/AppUserPurchasesTable.vue';
     import AppBuyTokensCard from '~/components/AppBuyTokensCard.vue';
     import AppBonusTokensCard from '~/components/AppBonusTokensCard.vue';
     import AppVestingTokensCard from '~/components/AppVestingTokensCard.vue';
-    import { Metaplex } from '~/js/metaplex';
     import { getStatus, IcoStatus } from '~/js/utils';
-    // import launchpads from '@/assets/launchpads.json';
-
-    // const { publicKey } = useWallet();
+    import { ethers } from 'ethers';
+    import LaunchpadABI from '@/abis/Launchpad.json';
 
     const ethAddress = ref<string | null>(null);
+    const owner = ref<string | null>(null);
+
     onMounted(async () => {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        ethAddress.value = accounts[0];
+        const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+        await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+        const signer = await provider.getSigner();
+        ethAddress.value = signer.address;
         fetchData();
-        fetchUserPurchases();
     });
 
     const hasConnectedWallet = computed(() => {
@@ -154,16 +120,17 @@
     const toast = useToast();
 
     const icoInfo = ref(new DataWrapper<IIcoInfo>());
-    // const userPurchases = ref(new DataWrapper<IUserPurchaseWithKey[]>());
 
     const icoPot = computed(() => {
         return useRoute().params.id;
     });
 
-    // // Find the matching launchpad data from launchpads.json
-    // const launchpadData = computed(() => {
-    //     return launchpads.find((launchpad) => launchpad.key === icoPot.value);
-    // });
+    const isOwner = computed(() => {
+        return (
+            ethAddress.value?.toLowerCase() ===
+            icoInfo.value.data?.owner?.toLowerCase()
+        );
+    });
 
     const status = computed(() => {
         return getStatus(
@@ -202,38 +169,6 @@
         }
     };
 
-    const fetchUserPurchases = async () => {
-        if (ethAddress.value) {
-            try {
-                // const ups = await SolanaIcoLaunchpad.getAllPurchases({
-                //     buyer: new web3.PublicKey(publicKey.value.toBase58()),
-                //     ico: new web3.PublicKey(icoPot.value),
-                // });
-
-                // ups.forEach((up: IUserPurchaseWithKey) => {
-                //     up.data.buyDate *= 1000;
-                // });
-
-                // ups.sort((a, b) => (a.data.buyDate > b.data.buyDate ? -1 : 1));
-
-                // userPurchases.value.setData(ups);
-            } catch (e) {
-                console.log(e);
-            }
-        } else {
-            // userPurchases.value.clear();
-        }
-    };
-
-
-    // watch(
-    //     () => publicKey.value,
-    //     () => {
-    //         fetchData();
-    //         fetchUserPurchases();
-    //     },
-    // );
-
     const fetchData = async () => {
         if (ethAddress.value) {
             try {
@@ -252,53 +187,44 @@
         }
     };
 
-    const claimTokens = async (context: IClaimContext) => {
-        context.button.loading = true;
+    const handleRescueTokens = async() => {
+        try {
+            const tokenAddress = icoPot.value.toString().split("-")[0];
+            // 1. Connect to MetaMask
+            const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+            await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
 
-        // try {
-        //     toast.add({
-        //         title: 'Preparing transaction',
-        //         icon: 'i-lucide-info',
-        //         description: 'Please wait for the transaction.',
-        //         color: 'info',
-        //     });
+            // 2. Get signer
+            const signer = await provider.getSigner();
+            // 3. Use signer with your proxy contract
+            const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
+            const tx = await proxyAsLaunchpad.rescueTokens(
+                tokenAddress,
+            );
+            console.log("Transaction hash is", tx.hash);
+        } catch (error) {
+            console.log(error);
+        }
+    }
 
-        //     const txSig = await SolanaIcoLaunchpad.claimTokens({
-        //         icoPot: new web3.PublicKey(icoPot.value),
-        //         isIco2022: false, //TODO where can we take this?
-        //         userPurchase: new web3.PublicKey(context.userPurchaseKey),
-        //     });
+    const handleCloseICO = async() => {
+        try {
+            console.log("Closing ICO...")
+            const id = icoPot.value.toString().split("-")[1];
+            // 1. Connect to MetaMask
+            const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+            await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
 
-        //     toast.add({
-        //         title: 'Confirming transaction',
-        //         icon: 'i-lucide-info',
-        //         description: 'Please wait for the transaction.',
-        //         color: 'info',
-        //     });
-
-        //     await Metaplex.getInstance().confirmTransaction(txSig);
-
-        //     toast.add({
-        //         title: 'Success',
-        //         icon: 'i-lucide-check-circle',
-        //         description: 'Your action was completed successfully.',
-        //         color: 'success',
-        //     });
-
-        //     // await fetchUserPurchases();
-        // } catch (e) {
-        //     toast.add({
-        //         title: 'Uh oh! Something went wrong.',
-        //         description: 'There was a problem with your request.',
-        //         icon: 'i-lucide-alert-circle',
-        //         close: {
-        //             color: 'primary',
-        //             variant: 'outline',
-        //             class: 'rounded-full',
-        //         },
-        //     });
-        // } finally {
-        //     context.button.loading = false;
-        // }
-    };
+            // 2. Get signer
+            const signer = await provider.getSigner();
+            // 3. Use signer with your proxy contract
+            const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
+            const tx = await proxyAsLaunchpad.closeICO(
+                id,
+            );
+            console.log("Transaction hash is", tx.hash);
+        } catch (error) {
+            console.log(error)
+        }
+    }
 </script>
