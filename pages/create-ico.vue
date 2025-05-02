@@ -89,7 +89,7 @@
   import { ref, onMounted } from 'vue';
   import LaunchpadABI from '@/abis/Launchpad.json';
   import ERC20ABI from '@/abis/ERC20.json';
-  import { proxyAddress } from '~/js/ico-evm';
+  import { proxyAddress, getMetaMaskEthereum } from '~/js/ico-evm';
   import { ethers } from 'ethers';
   import { useRouter } from 'vue-router'
 
@@ -116,67 +116,71 @@
 
 
   onMounted(async () => {
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    ethAddress.value = accounts[0];
+    const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+    await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+    const signer = await provider.getSigner();
+    ethAddress.value = signer.address;
   });
 
-const approveToken = async () => {
-  try {
-    if(!ethAddress.value) return
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
-    const signer = await provider.getSigner();
-    const token = new ethers.Contract(icoForm.value.token, ERC20ABI, signer);
-    const total = web3.utils.toWei((Number(icoForm.value.amount) + Number(icoForm.value.bonusReserve)).toString(), 'ether');
+  const approveToken = async () => {
+    try {
+      if(!ethAddress.value) return
+      const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+      await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+      const signer = await provider.getSigner();
+      const token = new ethers.Contract(icoForm.value.token, ERC20ABI, signer);
+      const total = web3.utils.toWei((Number(icoForm.value.amount) + Number(icoForm.value.bonusReserve)).toString(), 'ether');
 
-    const tx = await token.approve(proxyAddress, total);
-    const result = await tx.wait();
-    if (result) {
-      return result
-    }
-  } catch (error) {
-    console.log("error: error");
-  }
-};
-
-const createICO = async () => {
-  try {
-    if(!ethAddress.value) return
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
-    const signer = await provider.getSigner();
-    const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
-    
-    await approveToken();
-
-    const icoParams = {
-      token: icoForm.value.token,
-      paymentToken: icoForm.value.paymentToken,
-      amount: (web3.utils.toWei(icoForm.value.amount, 'ether')),
-      startPrice: (web3.utils.toWei(icoForm.value.startPrice, 'ether')),
-      endPrice: (web3.utils.toWei(icoForm.value.endPrice, 'ether')),
-      startDate: +icoForm.value.startDate,
-      endDate: +icoForm.value.endDate,
-      bonusReserve: (web3.utils.toWei(icoForm.value.bonusReserve, 'ether')),
-      bonusPercentage: +icoForm.value.bonusPercentage,
-      bonusActivator: +icoForm.value.bonusActivator,
-      vestingParams: {
-        unlockPercentage: +icoForm.value.unlockPercentage,
-        cliffPeriod: +icoForm.value.cliffPeriod,
-        vestingPercentage: +icoForm.value.vestingPercentage,
-        vestingInterval: +icoForm.value.vestingInterval
+      const tx = await token.approve(proxyAddress, total);
+      const result = await tx.wait();
+      if (result) {
+        return result
       }
-    };
-    console.log(icoParams);
-  
-    const tx = await proxyAsLaunchpad.createICO(icoParams);
-    console.log("transaction hash is ", tx);
-    if ( await tx.wait()) {
-      router.push('/')
+    } catch (error) {
+      console.log("error: error");
     }
-  } catch (err:any) {
-    console.error("Create ICO failed:", err);
-    alert("Create ICO failed: " + (err.message || "Unknown error"));
-  }
-};
+  };
+
+  const createICO = async () => {
+    try {
+      if(!ethAddress.value) return
+      const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+      console.log(provider);
+      await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+      const signer = await provider.getSigner();
+
+      const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
+      
+      await approveToken();
+
+      const icoParams = {
+        token: icoForm.value.token,
+        paymentToken: icoForm.value.paymentToken,
+        amount: (web3.utils.toWei(icoForm.value.amount, 'ether')),
+        startPrice: (web3.utils.toWei(icoForm.value.startPrice, 'ether')),
+        endPrice: (web3.utils.toWei(icoForm.value.endPrice, 'ether')),
+        startDate: +icoForm.value.startDate,
+        endDate: +icoForm.value.endDate,
+        bonusReserve: (web3.utils.toWei(icoForm.value.bonusReserve, 'ether')),
+        bonusPercentage: +icoForm.value.bonusPercentage,
+        bonusActivator: +icoForm.value.bonusActivator,
+        vestingParams: {
+          unlockPercentage: +icoForm.value.unlockPercentage,
+          cliffPeriod: +icoForm.value.cliffPeriod,
+          vestingPercentage: +icoForm.value.vestingPercentage,
+          vestingInterval: +icoForm.value.vestingInterval
+        }
+      };
+      console.log(icoParams);
+    
+      const tx = await proxyAsLaunchpad.createICO(icoParams);
+      console.log("transaction hash is ", tx);
+      if ( await tx.wait()) {
+        router.push('/')
+      }
+    } catch (err:any) {
+      console.error("Create ICO failed:", err);
+      alert("Create ICO failed: " + (err.message || "Unknown error"));
+    }
+  };
 </script>
