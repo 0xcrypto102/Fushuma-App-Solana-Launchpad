@@ -1,6 +1,6 @@
-# Nuxt Minimal Starter
+# Get Start
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+  https://github.com/Fushuma/Dev_grants/issues/32#issuecomment-2835633773
 
 ## Setup
 
