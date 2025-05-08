@@ -143,6 +143,7 @@
 
   const createICO = async () => {
     try {
+  
       if(!ethAddress.value) return
       const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
       console.log(provider);
@@ -150,8 +151,8 @@
       const signer = await provider.getSigner();
 
       const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, signer);
-      
       await approveToken();
+      const creationFee = await proxyAsLaunchpad.creationFee();
 
       const icoParams = {
         token: icoForm.value.token,
@@ -173,7 +174,12 @@
       };
       console.log(icoParams);
     
-      const tx = await proxyAsLaunchpad.createICO(icoParams);
+      const tx = await proxyAsLaunchpad.createICO(icoParams,  
+        {
+            value: creationFee.toString(),
+        }
+      );
+
       console.log("transaction hash is ", tx);
       if ( await tx.wait()) {
         router.push('/')
