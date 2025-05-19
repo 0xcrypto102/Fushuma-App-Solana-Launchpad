@@ -67,24 +67,33 @@
             </div>
           
             <div class="mt-6 flex flex-col md:flex-row gap-4">
-                <UButton
+                <!-- <UButton
                     color="error"
                     icon="i-lucide-shield"
                     @click="handleRescueTokens"
                     class="w-full md:w-auto"
                 >
                     Rescue Tokens
-                </UButton>
+                </UButton> -->
 
                 <UButton
                     v-if="isOwner"
-                    color="success"
                     icon="i-lucide-check-circle"
                     @click="handleCloseICO"
-                    class="w-full md:w-auto"
+                    class="text-white dark:text-white w-fit"
                 >
                     Close ICO
                 </UButton>
+            </div>
+             <div v-if="hasConnectedWallet" class="mb-12">
+                <AppSubtitle title="Your purchases" class="mb-5 mt-9 text-center md:text-start" />
+
+                <AppUserPurchasesTable
+                    :user-purchases="userPurchases.data"
+                    :user-purchases-fetched="userPurchases.fetched"
+                    :ico="icoInfo.data"
+                    @claim="claimTokens"
+                />
             </div>
         </div>
     </div>
@@ -93,7 +102,7 @@
 <script setup lang="ts">
     // import { SolanaIcoLaunchpad } from '@/js/ico';
     import { DataWrapper } from '@/types/DataWrapper';
-    import { fetchICO, getMetaMaskEthereum, proxyAddress } from '~/js/ico-evm';
+    import { fetchICO, getMetaMaskEthereum, proxyAddress, getBuyHistory } from '~/js/ico-evm';
     import { type IIcoInfo, type IUserPurchaseWithKey } from '~/types/Ico';
     import AppBuyTokensCard from '~/components/AppBuyTokensCard.vue';
     import AppBonusTokensCard from '~/components/AppBonusTokensCard.vue';
@@ -101,6 +110,8 @@
     import { getStatus, IcoStatus } from '~/js/utils';
     import { ethers } from 'ethers';
     import LaunchpadABI from '@/abis/Launchpad.json';
+
+    const userPurchases = ref(new DataWrapper<IUserPurchaseWithKey[]>());
 
     const ethAddress = ref<string | null>(null);
     const owner = ref<string | null>(null);
@@ -146,6 +157,17 @@
     const currentPrice = ref(new DataWrapper<number>());
     const availableAmount = ref(new DataWrapper<number>());
 
+    const getBuyHisotryByUser = async() => {
+        try {
+            const id = icoPot.value.toString().split("-")[1];
+            const history = await getBuyHistory(ethAddress.value, id, icoInfo.value.data.unlockPercentage/100);
+            console.log("history->", history);
+            userPurchases.value.setData(history);
+        } catch (error) {
+            console.error("error: ", error);
+        }
+    }
+
     const fetchCurrentPrice = async () => {
         if (
             (icoInfo.value.data && status.value.status === IcoStatus.Live) ||
@@ -179,6 +201,9 @@
                 icoInfo.value.setData(i.data);
 
                 await fetchCurrentPrice();
+
+                // ✅ Now it's safe to call getBuyHisotryByUser
+                await getBuyHisotryByUser();
             } catch (e) {
                 console.log(e);
             }

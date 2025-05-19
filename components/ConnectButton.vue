@@ -83,6 +83,18 @@ const shortSolAddress = computed(() =>
   (solAddress.value && walletType.value == "solana") ? `Solana ${solAddress.value.slice(0, 4)}...${solAddress.value.slice(-4)}` : ''
 );
 
+const setupMetaMaskEvents = () => {
+  const ethereum = (window as any).ethereum;
+  if (ethereum && ethereum.on) {
+    ethereum.on('accountsChanged', (accounts: string[]) => {
+      ethAddress.value = accounts[0] || null;
+      walletType.value = accounts[0] ? 'evm' : '';
+      console.log('MetaMask changed to:', ethAddress.value);
+    });
+  }
+};
+
+
 // Detection
 const metaMaskDetected = computed(() => {
   const { ethereum } = window as any;
@@ -126,6 +138,7 @@ const selectWallet = async (type: 'evm' | 'solana') => {
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
       ethAddress.value = accounts[0];
       walletType.value = "evm";
+      setupMetaMaskEvents();
     } catch (err) {
       alert('MetaMask connect failed.');
     }

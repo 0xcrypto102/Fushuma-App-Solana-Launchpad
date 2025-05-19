@@ -31,8 +31,7 @@
                             <a
                                 href="https://fushuma.com/"
                                 target="_blank"
-                                aria-hidden="true"
-                                class=" py-2 inline-block w-[50px] h-[1em] !text-transparent !hover:text-transparent"
+                                 class="py-2 hover:text-[#DA342E] dark:text-gray-300 dark:hover:text-[#DA342E] transition-colors"
                             >
                                 Website
                             </a>
@@ -97,10 +96,6 @@
                                 <img v-if="colorMode.value === 'light'" class="h-10" :src="fushumaWhite" />
                             </a>
                         </div>
-                        <p class="text-gray-600 dark:text-gray-400 max-w-md">
-                            Fushuma Launchpad is the premier platform for launching Solana projects with seamless
-                            integration and comprehensive support.
-                        </p>
                         <!-- Social Links -->
                         <div class="flex space-x-4 pt-2">
                             <a

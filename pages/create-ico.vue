@@ -131,7 +131,10 @@
 
   const router = useRouter()
   const web3 = new Web3(window.ethereum);
-  // const tokenAddress = '0x24Eb18b226e41D1186955A95EAe81b2d9Efd731D';
+  const now = new Date();
+  const inOneHour = new Date(now.getTime() + 3600 * 1000).toISOString().slice(0, 16); // yyyy-MM-ddTHH:mm
+
+
   const ethAddress = ref<string | null>(null);
   const icoForm = ref({
     token: '',
@@ -140,8 +143,8 @@
     amount: '',
     startPrice: '',
     endPrice: '0',
-    startDate: Math.floor(Date.now() / 1000) + 3600,
-    endDate: 0,
+    startDate: inOneHour,
+    endDate: '',
     bonusReserve: '',
     bonusPercentage: '',
     bonusActivator: '',
@@ -195,30 +198,23 @@
 
   function validateICOInputs(): string | null {
     const now = Date.now();
-    const startDate = new Date(icoForm.value.startDate).getTime();
-    const endDate = new Date(icoForm.value.endDate).getTime();
+    const start = new Date(icoForm.value.startDate).getTime();
+    const end = icoForm.value.endDate ? new Date(icoForm.value.endDate).getTime() : 0;
 
-    if (!icoForm.value.startDate || !icoForm.value.endDate) {
-      return "Please enter both start and end dates.";
-    }
+    if (!icoForm.value.startDate) return "Start date is required.";
 
-    if (startDate < now - 60) {
-      return "Start date must be in the future.";
-    }
+    if (start < now - 60 * 1000) return "Start date must be in the future.";
 
-    if (startDate >= endDate) {
-      return "End date must be after the start date.";
-    }
+    if (icoForm.value.endDate && start >= end) return "End date must be after start date.";
 
     const startPrice = parseFloat(icoForm.value.startPrice);
     const endPrice = parseFloat(icoForm.value.endPrice);
 
-    if (isNaN(startPrice) || isNaN(endPrice)) {
-      return "Start and End price must be valid numbers.";
-    }
+    if (isNaN(startPrice) || isNaN(endPrice)) return "Start and End price must be valid numbers.";
 
-    return null; // All valid
+    return null;
   }
+
 
 
   const createICO = async () => {
@@ -247,8 +243,8 @@
         amount: (web3.utils.toWei(icoForm.value.amount, 'ether')),
         startPrice: (web3.utils.toWei(icoForm.value.startPrice, 'ether')),
         endPrice: (web3.utils.toWei(icoForm.value.endPrice, 'ether')),
-        startDate: +icoForm.value.startDate,
-        endDate: +icoForm.value.endDate,
+        startDate: Math.floor(new Date(icoForm.value.startDate).getTime() / 1000),
+        endDate: icoForm.value.endDate ? Math.floor(new Date(icoForm.value.endDate).getTime() / 1000) : 0,
         bonusReserve: (web3.utils.toWei(icoForm.value.bonusReserve, 'ether')),
         bonusPercentage: +icoForm.value.bonusPercentage,
         bonusActivator: +icoForm.value.bonusActivator,

@@ -478,13 +478,21 @@
                         </template>
                     </UInputNumber>
                 </UFormField>
-                <UFormField v-if="evmMemo" required label="EVM Chain Address">
+                <UFormField
+                    v-if="evmMemo"
+                    required
+                    label="Fushuma Chain Address"
+                    class="flex flex-col justify-end"
+                >
                     <UInput class="w-full text-center" v-model="evmChainAddress" />
+                    <div class="absolute text-xs text-gray-500 mt-2 leading-tight whitespace-nowrap">
+                        Only required if the ICO is conducted on Solana chain.
+                    </div>
                 </UFormField>
                 <UButton
                     :class="!purchaseAmount || (isLoading && 'cursor-not-allowed')"
                     :loading="isLoading"
-                    class="w-fit max-h-[48px] h-[36px] px-6 dark:text-white"
+                    class="w-fit max-h-[48px] h-[36px] px-6 dark:text-white mt-4 md:mt-0"
                     @click="buy"
                     >Buy token</UButton
                 >

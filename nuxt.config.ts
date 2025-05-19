@@ -9,22 +9,22 @@ export default defineNuxtConfig({
 
     app: {
         head: {
-            title: 'Fushuma Solana Launchpad',
+            title: 'Fushuma Launchpad',
             meta: [
                 { charset: 'utf-8' },
                 { name: 'viewport', content: 'width=device-width, initial-scale=1' },
                 {
                     name: 'description',
-                    content: 'Fushuma Solana Launchpad - A platform for launching ICOs on Solana blockchain',
+                    content: 'Fushuma Launchpad - A platform for launching ICOs on Solana and Fushuma blockchain',
                 },
                 { name: 'theme-color', content: '#ffffff' },
-                { property: 'og:title', content: 'Fushuma Solana Launchpad' },
-                { property: 'og:description', content: 'Launch your ICO on Solana blockchain with Fushuma Launchpad' },
+                { property: 'og:title', content: 'Fushuma Launchpad' },
+                { property: 'og:description', content: 'Launch your ICO on Solana and Fushuma blockchain with Fushuma Launchpad' },
                 { property: 'og:type', content: 'website' },
                 { property: 'og:site_name', content: 'Fushuma Launchpad' },
                 { name: 'twitter:card', content: 'summary_large_image' },
-                { name: 'twitter:title', content: 'Fushuma Solana Launchpad' },
-                { name: 'twitter:description', content: 'Launch your ICO on Solana blockchain with Fushuma Launchpad' },
+                { name: 'twitter:title', content: 'Fushuma Launchpad' },
+                { name: 'twitter:description', content: 'Launch your ICO on Solana and Fushuma with Fushuma Launchpad' },
             ],
             link: [
                 { rel: 'preconnect', href: 'https://fonts.googleapis.com' },

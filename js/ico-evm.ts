@@ -89,6 +89,82 @@ export async function fetchICO(index: string): Promise<IIcoInfoWithKey | null> {
   }
 }
 
+async function findClosestBlockByTimestamp(targetTimestamp: number): Promise<number> {
+  let latestBlockNumber = await provider.getBlockNumber();
+  let earliest = 0;
+  let latest = latestBlockNumber;
+
+  while (earliest <= latest) {
+    const middle = Math.floor((earliest + latest) / 2);
+    const block = await provider.getBlock(middle);
+
+    if (!block) break;
+
+    const blockTimestamp = block.timestamp;
+
+    if (blockTimestamp < targetTimestamp) {
+      earliest = middle + 1;
+    } else if (blockTimestamp > targetTimestamp) {
+      latest = middle - 1;
+    } else {
+      return middle; // Exact match
+    }
+  }
+
+  // Return the closest block before the timestamp
+  return latest;
+}
+
+async function queryLogsInChunks(
+  fromBlock: number,
+  toBlock: number,
+  chunkSize = 1000
+) {
+  let logs: any[] = [];
+  const buyEventFilter = proxyAsLaunchpad.filters.BuyToken();
+
+  for (let start = fromBlock; start <= toBlock; start += chunkSize + 1) {
+    const end = Math.min(start + chunkSize, toBlock);
+
+    const chunkLogs = await proxyAsLaunchpad.queryFilter(buyEventFilter, start, end);
+    logs = logs.concat(chunkLogs);
+  }
+  return logs;
+}
+
+export async function getBuyHistory(buyerAddress: string, icoId: number, vestUnlockPercentage: number) {
+  const ico = await proxyAsLaunchpad.getICO(icoId);
+  const { 0: params, 1: state } = ico;
+  const startTimestamp = parseInt(params.startDate);
+  const startBlock = await findClosestBlockByTimestamp(startTimestamp);
+  const latestBlock = await provider.getBlockNumber();
+
+  const logs = await queryLogsInChunks(startBlock, latestBlock);
+
+  const filtered = logs.filter(
+    (log) =>
+      log.args.buyer.toLowerCase() == buyerAddress.toLowerCase() &&
+      Number(log.args.ICO_id) == icoId
+  );
+  filtered.sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : 1));
+
+  return await Promise.all(filtered.map(async (e: any) => {
+    const block = await provider.getBlock(e.blockNumber);
+    if(!block) return
+    return {
+      seed: e.transactionHash,
+      buyer: e.args.buyer,
+      ico: Number(e.args.ICO_id),
+      buyAmount: e.args.amountBought.toString(),
+      buyDate: block.timestamp * 1000,
+      bonus: e.args.bonus.toString(),
+      lockedAmount: (Number(e.args.amountBought) * vestUnlockPercentage / 100).toString(),
+      totalClaimed: 0,
+    };
+  }));
+}
+
+
 export async function getEvmCostInfo(id: number, amount: BigInt) : Promise<IPurchaseAmount | null>  {
   try {
     if(!id && id <0 ) return null;
