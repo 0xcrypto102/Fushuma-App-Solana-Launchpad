@@ -1,6 +1,7 @@
 export const TokenAddress = new Map<string, string>([
     ['So11111111111111111111111111111111111111112', 'wSOL'],
     ['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'USDC'],
+    ['0x0000000000000000000000000000000000000000', 'FUMA'],
 ]);
 
 export const convertTokenIfAvailable = (token: string) => {

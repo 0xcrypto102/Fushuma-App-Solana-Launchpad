@@ -9,10 +9,11 @@
                     <!-- Logo -->
                     <div class="flex items-center space-x-2">
                         <a
-                            href="https://fushuma.com/"
+                            href="https://launchpad.fushuma.com/"
                             target="_blank"
-                            class="text-2xl font-bold text-[#DA342E] dark:text-[#DA342E] hover:opacity-80 transition-opacity"
+                            class="text-2xl font-bold text-[#DA342E] dark:text-[#DA342E]  !hover:opacity-100"
                         >
+                        
                             <img class="md:hidden h-8" :src="fushumaAvatar" />
                             <img
                                 v-if="colorMode.value === 'dark'"
@@ -25,8 +26,16 @@
                                 :src="fushumaWhite"
                             />
                         </a>
-
-                        <nav class="hidden md:flex ml-6 uppercase font-semibold space-x-6">
+                        <nav class="hidden md:flex uppercase font-semibold space-x-6">
+                            <!-- 🌐 New "Website" Link -->
+                            <a
+                                href="https://fushuma.com/"
+                                target="_blank"
+                                aria-hidden="true"
+                                class=" py-2 inline-block w-[50px] h-[1em] !text-transparent !hover:text-transparent"
+                            >
+                                Website
+                            </a>
                             <a
                                 target="_blank"
                                 href="https://fushuma.com/blueprint-for-decentralization/"
@@ -79,8 +88,14 @@
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
                     <div class="md:col-span-3 space-y-4">
                         <div class="text-2xl font-bold text-[#DA342E] dark:text-[#DA342E]">
-                            <img v-if="colorMode.value === 'dark'" class="h-10" :src="fushumaBlack" />
-                            <img v-if="colorMode.value === 'light'" class="h-10" :src="fushumaWhite" />
+                            <a
+                                href="https://launchpad.fushuma.com/"
+                                target="_blank"
+                                class="text-2xl font-bold text-[#DA342E] dark:text-[#DA342E]  !hover:opacity-100"
+                            >
+                                <img v-if="colorMode.value === 'dark'" class="h-10" :src="fushumaBlack" />
+                                <img v-if="colorMode.value === 'light'" class="h-10" :src="fushumaWhite" />
+                            </a>
                         </div>
                         <p class="text-gray-600 dark:text-gray-400 max-w-md">
                             Fushuma Launchpad is the premier platform for launching Solana projects with seamless
@@ -93,28 +108,28 @@
                                 href="https://twitter.com/FushumaChain"
                                 class="text-gray-500 hover:text-[#DA342E] dark:text-gray-400 dark:hover:text-[#DA342E] transition-colors flex items-center"
                             >
-                                <Icon name="simple-icons:x" class="mr-1 w-4 h-4" /> X
+                                <Icon name="simple-icons:x" class="mr-1 w-4 h-4" /> 
                             </a>
                             <a
                                 target="_blank"
                                 href="https://t.me/FushumaChain"
                                 class="text-gray-500 hover:text-[#DA342E] dark:text-gray-400 dark:hover:text-[#DA342E] transition-colors flex items-center"
                             >
-                                <Icon name="mdi:telegram" class="mr-1 w-5 h-5" /> Telegram
+                                <Icon name="mdi:telegram" class="mr-1 w-5 h-5" /> 
                             </a>
                             <a
                                 target="_blank"
                                 href="https://www.facebook.com/FushumaChain"
                                 class="text-gray-500 hover:text-[#DA342E] dark:text-gray-400 dark:hover:text-[#DA342E] transition-colors flex items-center"
                             >
-                                <Icon name="mdi:facebook" class="mr-1 w-5 h-5" /> Facebook
+                                <Icon name="mdi:facebook" class="mr-1 w-5 h-5" />
                             </a>
                             <a
                                 target="_blank"
                                 href="https://reddit.com/r/Fushuma"
                                 class="text-gray-500 hover:text-[#DA342E] dark:text-gray-400 dark:hover:text-[#DA342E] transition-colors flex items-center"
                             >
-                                <Icon name="mdi:reddit" class="mr-1 w-5 h-5" /> Reddit
+                                <Icon name="mdi:reddit" class="mr-1 w-5 h-5" />
                             </a>
                         </div>
                     </div>
@@ -180,7 +195,7 @@
 
 <script setup>
     import fushumaBlack from '~/assets/img/fushuma-black.webp';
-    import fushumaWhite from '~/assets/img/fushuma-white.png';
+    import fushumaWhite from '~/assets/img/launchpad.webp';
     import fushumaAvatar from '~/assets/img/fushuma-avatar.png';
     const colorMode = useColorMode();
 

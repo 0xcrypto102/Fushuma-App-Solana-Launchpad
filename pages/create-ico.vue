@@ -1,7 +1,19 @@
 <template>
   <div class="p-6 space-y-6">
-    <h1 class="text-2xl font-bold">Create ICO</h1>
+    <h1 class="text-2xl font-bold" style="font-family: 'Expletus Sans';">Create ICO</h1>
 
+    <div class="flex justify-center md:justify-start space-x-2 mt-6 mb-9">
+      <div>
+          <UButton
+              size="lg"
+              @click="$router.push('/')"
+              icon="i-lucide-chevron-left"
+              class="text-white dark:text-white w-fit"
+          >
+              Launchpad</UButton
+          >
+      </div>
+    </div>
     <div v-if="!ethAddress" class="text-red-600">Please connect your wallet to continue.</div>
 
     <div v-else class="space-y-4">
@@ -11,9 +23,24 @@
           <input v-model="icoForm.token" type="text" class="input" placeholder="0x..."  className="border border-gray-300 p-2 rounded-md w-full" />
         </div>
 
-        <div>
-          <label class="block font-medium">Payment Token (0x0 for ETH)</label>
-          <input v-model="icoForm.paymentToken" type="text" class="input" placeholder="0x... or 0x0" className="border border-gray-300 p-2 rounded-md w-full"/>
+       <div>
+          <label class="block font-medium">Payment Token</label>
+          <select v-model="icoForm.paymentTokenSelection" class="border border-gray-300 p-2 rounded-md w-full">
+            <option value="fuma">FUMA (Native)</option>
+            <option value="usdc">USDC</option>
+            <option value="usdt">USDT</option>
+            <option value="custom">Other (Custom Address)</option>
+          </select>
+        </div>
+
+        <div v-if="icoForm.paymentTokenSelection === 'custom'">
+          <label class="block font-medium mt-2">Custom Token Address</label>
+          <input
+            v-model="icoForm.customPaymentToken"
+            type="text"
+            placeholder="0x..."
+            class="border border-gray-300 p-2 rounded-md w-full"
+          />
         </div>
 
         <div>
@@ -27,7 +54,7 @@
         </div>
 
         <div>
-          <label class="block font-medium">Start Price (in ETH)</label>
+          <label class="block font-medium">Start Price (in FUMA)</label>
           <input v-model="icoForm.startPrice" type="text" class="input" placeholder="e.g. 0.01" className="border border-gray-300 p-2 rounded-md w-full"/>
         </div>
 
@@ -37,13 +64,22 @@
         </div>
 
         <div>
-          <label class="block font-medium">Start Date (UNIX timestamp)</label>
-          <input v-model="icoForm.startDate" type="number" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
+          <label class="block font-medium">Start Date</label>
+          <input
+            v-model="icoForm.startDate"
+            type="datetime-local"
+            class="border border-gray-300 p-2 rounded-md w-full"
+          />
         </div>
 
         <div>
-          <label class="block font-medium">End Date (0 for unlimited)</label>
-          <input v-model="icoForm.endDate" type="number" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
+          <label class="block font-medium">End Date</label>
+          <input
+            v-model="icoForm.endDate"
+            type="datetime-local"
+            class="border border-gray-300 p-2 rounded-md w-full"
+          />
+          <small class="text-gray-400">Leave empty for unlimited</small>
         </div>
 
         <div>
@@ -77,7 +113,7 @@
         </div>
       </div>
 
-      <button @click="createICO" class="bg-green-600 text-white px-4 py-2 rounded-md">
+      <button @click="createICO" class="bg-[#c42f29] text-white px-4 py-2 rounded-md">
         Create ICO
       </button>
     </div>
@@ -99,7 +135,8 @@
   const ethAddress = ref<string | null>(null);
   const icoForm = ref({
     token: '',
-    paymentToken: '0x0000000000000000000000000000000000000000',
+    paymentTokenSelection: 'fuma', // dropdown selection
+    customPaymentToken: '',        // manual input
     amount: '',
     startPrice: '',
     endPrice: '0',
@@ -141,9 +178,59 @@
     }
   };
 
+  const getResolvedPaymentToken = () => {
+    switch (icoForm.value.paymentTokenSelection) {
+      case 'fuma':
+        return '0x0000000000000000000000000000000000000000'; // native FUMA
+      case 'usdc':
+        return '0x...USDC_ADDRESS'; // replace with actual address
+      case 'usdt':
+        return '0x...USDT_ADDRESS'; // replace with actual address
+      case 'custom':
+        return icoForm.value.customPaymentToken;
+      default:
+        return '0x0000000000000000000000000000000000000000';
+    }
+  }
+
+  function validateICOInputs(): string | null {
+    const now = Date.now();
+    const startDate = new Date(icoForm.value.startDate).getTime();
+    const endDate = new Date(icoForm.value.endDate).getTime();
+
+    if (!icoForm.value.startDate || !icoForm.value.endDate) {
+      return "Please enter both start and end dates.";
+    }
+
+    if (startDate < now - 60) {
+      return "Start date must be in the future.";
+    }
+
+    if (startDate >= endDate) {
+      return "End date must be after the start date.";
+    }
+
+    const startPrice = parseFloat(icoForm.value.startPrice);
+    const endPrice = parseFloat(icoForm.value.endPrice);
+
+    if (isNaN(startPrice) || isNaN(endPrice)) {
+      return "Start and End price must be valid numbers.";
+    }
+
+    return null; // All valid
+  }
+
+
   const createICO = async () => {
     try {
   
+      const error = validateICOInputs();
+      
+      if (error) {
+        alert(error);
+        return;
+      }
+
       if(!ethAddress.value) return
       const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
       console.log(provider);
@@ -156,7 +243,7 @@
 
       const icoParams = {
         token: icoForm.value.token,
-        paymentToken: icoForm.value.paymentToken,
+        paymentToken: getResolvedPaymentToken(),
         amount: (web3.utils.toWei(icoForm.value.amount, 'ether')),
         startPrice: (web3.utils.toWei(icoForm.value.startPrice, 'ether')),
         endPrice: (web3.utils.toWei(icoForm.value.endPrice, 'ether')),

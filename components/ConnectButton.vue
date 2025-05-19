@@ -1,135 +1,145 @@
 <template>
-    <div class="relative inline-block w-full max-w-sm">
-      <!-- Select Wallet Button -->
-      <button
-        @click="toggleDropdown"
-        class="bg-[#da342e] hover:bg-[#c42f29] text-white px-5 py-3 rounded-md font-medium w-full flex items-center justify-center gap-2 shadow-md transition"
-      >
-        <Icon icon="mdi:wallet" class="w-5 h-5" />
-        {{ displayText }}
-      </button>
-  
-      <!-- Dropdown -->
-      <transition name="fade">
-        <div
-          v-if="showDropdown"
-          class="absolute mt-2 w-full bg-white border border-gray-200 shadow-xl rounded-md z-50 overflow-hidden"
-        >
-            <button
-                @click="selectWallet('evm')"
-                class="bg-[#da342e] block  w-full text-left px-4 py-3  text-sm text-white transition rounded-md shadow-none font-[500] px-4 py-2"
-            >
-                Connect MetaMask
-            </button>
-            <div class="border-t border-gray-200"></div>
-            <WalletMultiButton class="custom-solana-button" />
+  <!-- Connect Wallet Button -->
+  <button
+    @click="showModal = true"
+    class="bg-[#da342e] hover:bg-[#c42f29] text-white px-5 py-3 rounded-md font-medium flex items-center gap-2 shadow-md transition"
+  >
+    <Icon icon="mdi:wallet" class="w-5 h-5" />
+    <span>
+      {{ shortEthAddress || shortSolAddress || 'Connect Wallet' }} {{walletType.value}}
+    </span>
+  </button>
 
+  <!-- Wallet Modal -->
+  <div v-if="showModal" class="fixed inset-0 z-50 flex justify-center items-center">
+    <!-- Semi-transparent white background -->
+    <div class="absolute inset-0 backdrop-blur-sm"></div>
+
+    <div class="relative bg-white rounded-lg shadow-lg w-full max-w-md z-10">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-4">
+        <h2 class="text-lg font-semibold">Connect Wallet</h2>
+        <button @click="showModal = false" class="text-gray-500 text-xl hover:text-gray-700">&times;</button>
+      </div>
+
+      <!-- Wallet Options -->
+      <div class="p-4 space-y-2">
+        <!-- Detected Wallets -->
+        <div v-for="wallet in detectedWallets" :key="wallet.name">
+          <button
+            @click="selectWallet(wallet.type)"
+            class="flex items-center justify-between w-full px-4 py-2 text-sm  rounded-md hover:bg-gray-100"
+          >
+            <span>{{ wallet.name }}</span>
+            <span class="text-green-600 text-xs font-medium">Detected</span>
+          </button>
         </div>
-      </transition>
-  
-      <!-- Connected Wallet Info -->
-      <div
-        v-if="isEvmConnected || hasConnectedWallet"
-        class="mt-3 bg-gray-50 border border-gray-200 rounded-md px-4 py-3 text-sm text-gray-700 space-y-1"
-      >
-        <div v-if="isEvmConnected">🟢 EVM: {{ shortEthAddress }}</div>
-        <div v-if="hasConnectedWallet">🟣 Solana: {{ shortSolAddress }}</div>
-        <button
-          @click="disconnectWallet"
-          class="text-red-500 hover:underline text-xs font-medium"
-        >
-          Disconnect
-        </button>
+
+        <!-- Toggle More Options -->
+        <div v-if="!showAllWallets">
+          <button
+            @click="showAllWallets = true"
+            class="text-sm text-blue-500 hover:underline mt-2"
+          >
+            More options
+          </button>
+        </div>
+
+        <!-- Undetected Wallets -->
+        <div v-if="showAllWallets" class="space-y-2">
+          <div v-for="wallet in undetectedWallets" :key="wallet.name">
+            <button
+              disabled
+              class="flex items-center justify-between w-full px-4 py-2 text-sm rounded-md bg-gray-50 text-gray-400 cursor-not-allowed"
+            >
+              <span>{{ wallet.name }}</span>
+              <span class="text-xs">Not Detected</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
 </template>
+
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
-  import { Icon } from '@iconify/vue';
-  import { useWallet, WalletMultiButton } from 'solana-wallets-vue';
-  import { useBalanceStore } from '@/store/balances';
-  
-  const showDropdown = ref(false);
-  const toggleDropdown = () => (showDropdown.value = !showDropdown.value);
-  
-  const ethAddress = ref<string | null>(null);
-  const { publicKey, disconnect: disconnectSolana, connect: connectSolanaWallet } = useWallet();
-  
-  const solAddress = computed(() => publicKey.value?.toBase58() || null);
-  const isEvmConnected = computed(() => !!ethAddress.value);
-  const hasConnectedWallet = computed(() => !!solAddress.value);
-  
-  const shortEthAddress = computed(() =>
-    ethAddress.value ? `${ethAddress.value.slice(0, 6)}...${ethAddress.value.slice(-4)}` : ''
+import { ref, computed } from 'vue';
+import { Icon } from '@iconify/vue';
+import { useWallet } from 'solana-wallets-vue';
+
+const showModal = ref(false);
+const showAllWallets = ref(false);
+const walletType = ref<string>("evm");
+const ethAddress = ref<string | null>(null);
+const solAddress = ref<string | null>(null);
+
+const { publicKey, connect: connectSolanaWallet } = useWallet();
+
+// Shortened display
+const shortEthAddress = computed(() =>
+  (ethAddress.value && walletType.value == "evm") ? `EVM ${ethAddress.value.slice(0, 6)}...${ethAddress.value.slice(-4)}` : ''
+);
+const shortSolAddress = computed(() =>
+  (solAddress.value && walletType.value == "solana") ? `Solana ${solAddress.value.slice(0, 4)}...${solAddress.value.slice(-4)}` : ''
+);
+
+// Detection
+const metaMaskDetected = computed(() => {
+  const { ethereum } = window as any;
+  if (ethereum?.providers?.length) {
+    return ethereum.providers.some((p: any) => p.isMetaMask);
+  }
+  return !!ethereum?.isMetaMask;
+});
+
+const phantomDetected = computed(() => {
+  const { solana } = window as any;
+  return !!solana?.isPhantom;
+});
+
+const detectedWallets = computed(() => {
+  const wallets = [];
+  if (metaMaskDetected.value) wallets.push({ name: 'MetaMask', type: 'evm' });
+  if (phantomDetected.value) wallets.push({ name: 'Phantom', type: 'solana' });
+  return wallets;
+});
+
+const undetectedWallets = computed(() => {
+  const all = [
+    { name: 'MetaMask', type: 'evm' },
+    { name: 'Phantom', type: 'solana' },
+    { name: 'Solflare', type: 'solana' },
+    { name: 'Backpack', type: 'solana' }
+  ];
+  return all.filter(
+    (w) => !detectedWallets.value.some((d) => d.name === w.name)
   );
-  const shortSolAddress = computed(() =>
-    solAddress.value ? `${solAddress.value.slice(0, 4)}...${solAddress.value.slice(-4)}` : ''
-  );
-  
-  const displayText = computed(() => {
-    if (isEvmConnected.value) return 'MetaMask Connected';
-    if (hasConnectedWallet.value) return 'Solana Connected';
-    return 'Select Wallet';
-  });
-  
-    function getMetaMaskProvider(): any {
-        const { ethereum } = window as any;
+});
 
-        // If multiple providers exist (MetaMask + Phantom)
-        if (ethereum?.providers?.length) {
-            return ethereum.providers.find((p: any) => p.isMetaMask);
-        }
-
-        // Fallback: single injected provider
-        if (ethereum?.isMetaMask) return ethereum;
-
-        throw new Error('MetaMask provider not found');
+// Connect wallet
+const selectWallet = async (type: 'evm' | 'solana') => {
+  showModal.value = false;
+  if (type === 'evm') {
+    try {
+      const ethereum = (window as any).ethereum;
+      const provider = ethereum?.providers?.find((p: any) => p.isMetaMask) || ethereum;
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      ethAddress.value = accounts[0];
+      walletType.value = "evm";
+    } catch (err) {
+      alert('MetaMask connect failed.');
     }
+  } else if (type === 'solana') {
+    try {
+      const { solana } = window as any;
+      await solana.connect();
+      console.log('Connected Solana wallet:', solana.publicKey.toString());
+      solAddress.value = solana.publicKey.toString(); // manually assign
+      walletType.value = "solana"
+    } catch (err) {
+      alert('Solana connect failed.');
+    }
+  }
+};
 
-    const selectWallet = async (type: 'evm' | 'solana') => {
-        showDropdown.value = false;
-
-        if (type === 'evm') {
-            try {
-            const metamask = getMetaMaskProvider();
-            const accounts = await metamask.request({ method: 'eth_requestAccounts' });
-            ethAddress.value = accounts[0];
-            // You can now use `metamask` as your provider in ethers:
-            // const provider = new ethers.BrowserProvider(metamask);
-            } catch (err) {
-            console.error('MetaMask connect failed:', err);
-            }
-        } else if (type === 'solana') {
-            try {
-            await connectSolanaWallet();
-            } catch (err) {
-            console.error('Solana connect failed:', err);
-            }
-        }
-    };
-  
-  const disconnectWallet = async () => {
-    ethAddress.value = null;
-    if (solAddress.value) await disconnectSolana();
-  };
-  
-  const balanceStore = useBalanceStore();
 </script>
-  
-<style scoped>
-.custom-solana-button {
-  background-color: white !important;
-  color: #333 !important;
-  padding: 0.5rem 1rem !important;
-  border-radius: 6px !important;
-  font-weight: 500;
-  width: 100% !important;
-  text-align: left !important;
-  transition: background-color 0.2s ease;
-}
-
-.custom-solana-button:hover {
-  background-color: #f3f4f6 !important;
-}
-</style>
-

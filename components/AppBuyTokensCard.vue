@@ -424,7 +424,7 @@
 
                 <UFormField v-if="isSetPurchasePrice" label="You Receive">
                     <UInputNumber
-                        class="w-full text-center"
+                        class="w-full"
                         :format-options="{
                             roundingMode: 'expand',
                             roundingPriority: 'morePrecision',
@@ -458,7 +458,7 @@
 
                 <UFormField v-if="!isSetPurchasePrice" label="You Pay">
                     <UInputNumber
-                        class="w-full text-center"
+                        class="w-full"
                         :format-options="{
                             roundingMode: 'expand',
                             roundingPriority: 'morePrecision',

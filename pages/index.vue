@@ -52,14 +52,15 @@
                             </p>
                         </AppStateCard>
 
-                        <NuxtLink
-                            to="/create-ico"
-                            class="inline-block bg-[#da342e] px-6 py-3 rounded-lg text-white font-semibold text-center transition-colors duration-200 hover:bg-[#c12e29] focus:outline-none focus:ring-2 focus:ring-[#da342e] focus:ring-offset-2"
-                            aria-label="Navigate to the Create ICO page"
-                        >
-                            <span class="text-white">Create New ICO</span>
-                        </NuxtLink>
-
+                        <div class="mt-12">
+                            <NuxtLink
+                                to="/create-ico"
+                                class="inline-block bg-[#da342e] px-6 py-3 rounded-lg text-white font-semibold text-center transition-colors duration-200 hover:bg-[#c12e29] focus:outline-none focus:ring-2 focus:ring-[#da342e] focus:ring-offset-2"
+                                aria-label="Navigate to the Create ICO page"
+                            >
+                                <span class="text-white">Create New ICO</span>
+                            </NuxtLink>
+                        </div>
 
                         <div
                             v-if="data.fetched && data.data?.length && !data.error"
@@ -130,7 +131,6 @@
             const evmIcos = await fetchAllICOs();
             const combined = [...evmIcos, ...solanaIcos];
             // const combined = evmIcos;
-            console.log(evmIcos)
 
             combined.sort((a, b) => (a.data.startDate > b.data.startDate ? -1 : 1));
 

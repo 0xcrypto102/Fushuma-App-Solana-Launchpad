@@ -11,6 +11,10 @@
         launchpad: any;
     }>();
 
+    const currentTime = ref(Date.now());
+    let timerInterval: number | null = null;
+    let evmFlag = ref<boolean | null>(null);
+
     const router = useRouter();
 
     const combinedData = ref<IIcoInfoWithKey & { launchpad: any }>({
@@ -34,8 +38,13 @@
         stopTimer();
     });
 
-    const currentTime = ref(Date.now());
-    let timerInterval: number | null = null;
+    onMounted(async () => {
+        if (props.data.key.slice(0,2) == "0x") {
+            evmFlag.value = true; 
+        } else {
+            evmFlag.value = false; 
+        }
+    });
 
     function startTimer() {
         timerInterval = window.setInterval(() => {
@@ -158,7 +167,7 @@
                     :color="
                         status.color as 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
                     "
-                    >{{ status.status }}</UBadge
+                    >{{ status.status }} on {{!evmFlag ? "Solana" : "Fushuma"}}</UBadge
                 >
             </div>
 
@@ -198,11 +207,11 @@
             </div>
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">ICO Mint</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">ICO Token</div>
                     <div class="font-medium">{{ convertTokenIfAvailableWithFormatting(props.data.data.icoMint) }}</div>
                 </div>
                 <div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Cost Mint</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Payment token</div>
                     <div class="font-medium">{{ convertTokenIfAvailableWithFormatting(props.data.data.costMint) }}</div>
                 </div>
                 <div>
@@ -247,11 +256,11 @@
 
             <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Start Date</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Started the</div>
                     <div class="font-medium">{{ formattedStartDate }}</div>
                 </div>
                 <div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">End Date</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Ends the</div>
                     <div class="font-medium">{{ formattedEndDate }}</div>
                 </div>
             </div>
