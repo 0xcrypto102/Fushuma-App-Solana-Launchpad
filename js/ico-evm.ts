@@ -1,10 +1,13 @@
-import type { IIcoInfoWithKey, IPurchaseAmount } from "~/types/Ico";
+import type { IIcoInfoWithKey, IPurchaseAmount, IUserPurchase, IUserPurchaseWithKey } from "~/types/Ico";
 import LaunchpadABI from '@/abis/Launchpad.json';
+import VestingImplementationABI from '@/abis/VestingImplementation.json';
+
 import Web3 from 'web3';
 import { ethers } from 'ethers';
 
 // Proxy address (where calls are delegated through)
 export const proxyAddress = '0x206236eca2dF8FB37EF1d024e1F72f4313f413E4';
+export const vestingImplementationAddress = '0x0d8e696475b233193d21E565C21080EbF6A3C5DA';
 
 // Provider (Infura, Alchemy, or Metamask provider)
 // Use with ethers.js v6
@@ -12,6 +15,7 @@ const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
 
 // Connect the proxy address using the implementation ABI
 export const proxyAsLaunchpad = new ethers.Contract(proxyAddress, LaunchpadABI, provider);
+export const vestingImplementation = new ethers.Contract(vestingImplementationAddress, VestingImplementationABI, provider);
 
 export function getMetaMaskEthereum(): any {
   const providers = window?.ethereum?.providers;
@@ -55,7 +59,8 @@ function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWi
             cliffPeriod: Number(params.vestingParams.cliffPeriod),
             vestingPercentage: Number(params.vestingParams.vestingPercentage),
             vestingInterval: Number(params.vestingParams.vestingInterval),
-            purchaseSeqNum: 0 // Add logic if you need to track purchases per user
+            purchaseSeqNum: 0, // Add logic if you need to track purchases per user
+            vestingContracts: state.vestingContract || null
         }
     };
 }
@@ -184,6 +189,48 @@ export async function getEvmCostInfo(id: number, amount: BigInt) : Promise<IPurc
 export async function getPurchaseAmount(index: number) {
   const ico = await proxyAsLaunchpad.getICO(index);
   const { 0: params, 1: state } = ico;
-  
 }
 
+export async function getVestingInfoAsPurchases(
+  vestingContractAddress: string,
+  userAddress: string,
+  ico: string,
+  unlockPercentage: number
+): Promise<IUserPurchaseWithKey[]> {
+  const vestingImplementation = new ethers.Contract(
+    vestingContractAddress,
+    VestingImplementationABI,
+    provider
+  );
+
+  const [allocations, claimedRaw] = await Promise.all([
+    vestingImplementation.getBeneficiary(userAddress),
+    vestingImplementation.claimedAmount(userAddress)
+  ]);
+
+  const totalClaimed = Number(claimedRaw.toString());
+
+  // Assume total claimed is split equally among allocations (for demo)
+  const claimedPerAlloc = allocations.length > 0 ? totalClaimed / allocations.length : 0;
+
+  return allocations.map((alloc: any, index: number) => {
+    const unlockedPortion = Number(alloc.amount.toString()); // total allocated for this
+    const buyDate = Number(alloc.cliffFinish.toString()) * 1000;
+
+    const purchase: IUserPurchase = {
+      seed: index, // can use `tx hash` or index if not available
+      buyer: userAddress,
+      ico: ico, // replace if you know it externally
+      buyAmount: Number((unlockedPortion * 100 / unlockPercentage).toFixed(2)),
+      buyDate: buyDate,
+      bonus: 0, // no bonus info from vesting contract
+      lockedAmount: unlockedPortion,
+      totalClaimed: claimedPerAlloc,
+    };
+
+    return {
+      key: `${userAddress}-${index}`.toString(), // unique key
+      data: purchase,
+    };
+  });
+}

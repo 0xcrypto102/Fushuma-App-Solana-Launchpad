@@ -41,26 +41,30 @@
         (event: 'claim', context: IClaimContext): void;
     }>();
 
-    const buttons = reactive({});
+    const buttons = reactive<Record<string, { loading: boolean }>>({});
+
     const UButton = resolveComponent('UButton');
 
     const isCliffActive = (buyDate: string) => {
+        if (!ico || !ico.cliffPeriod) {
+            return false;
+        }
+        if (!buyDate) {
+            return false;
+        }
+        if (isNaN(new Date(buyDate).getTime())) {
+            return false;
+        }
+
         return new Date(buyDate + (ico?.cliffPeriod ?? 0) * 1000).getTime() > Date.now();
     };
-
-    const evmFlag = computed(() => {
-        if(useRoute().params.id.includes["evm"]) {
-            return true;
-        } 
-        return false;
-    })
 
     const columns: TableColumn<IUserPurchaseWithKey>[] = [
         {
             accessorKey: 'data.buyDate',
             header: 'Buy Date',
             cell: ({ row }) => {
-                return new Date(evmFlag? row.original.buyDate : row.original.data.buyDate).toLocaleString('en-US', {
+                return new Date(row.original.data.buyDate).toLocaleString('en-US', {
                     day: 'numeric',
                     month: 'short',
                     hour: '2-digit',
@@ -75,7 +79,7 @@
             cell: ({ row }) => {
                 return new Intl.NumberFormat('en-US', {
                     style: 'decimal',
-                }).format(evmFlag? row.original.buyAmount / (ico?.icoDecimals ?? 1) : row.original.data.buyAmount / (ico?.icoDecimals ?? 1));
+                }).format(row.original.data.buyAmount / (ico?.icoDecimals ?? 1));
             },
         },
         {
@@ -84,7 +88,7 @@
             cell: ({ row }) => {
                 return new Intl.NumberFormat('en-US', {
                     style: 'decimal',
-                }).format(evmFlag? row.original.lockedAmount  / (ico?.icoDecimals ?? 1) : row.original.data.lockedAmount / (ico?.icoDecimals ?? 1));
+                }).format(row.original.data.lockedAmount / (ico?.icoDecimals ?? 1));
             },
         },
         {
@@ -93,7 +97,7 @@
             cell: ({ row }) => {
                 return new Intl.NumberFormat('en-US', {
                     style: 'decimal',
-                }).format(evmFlag? row.original.totalClaimed / (ico?.icoDecimals ?? 1) : row.original.data.totalClaimed / (ico?.icoDecimals ?? 1));
+                }).format(row.original.data.totalClaimed / (ico?.icoDecimals ?? 1));
             },
         },
         {
@@ -101,18 +105,18 @@
             header: 'Claim Action',
             cell: ({ row }) => {
                 return h(UButton, {
-                    label: isCliffActive(evmFlag? row.original.buyDate : row.original.data.buyDate) ? 'Cliff active' : 'Claim',
+                    label: isCliffActive(row.original.data.buyDate.toString()) ? 'Cliff active' : 'Claim',
                     color: 'primary',
                     class: 'dark:text-white',
                     disabled:
-                        isCliffActive(evmFlag? row.original.buyDate : row.original.data.buyDate) ||
-                        (evmFlag? row.original.totalClaimed : row.original.data.totalClaimed) >=  (evmFlag? row.original.lockedAmount : row.original.data.lockedAmount),
+                        isCliffActive(row.original.data.buyDate.toString()) ||
+                        row.original.data.totalClaimed >=  row.original.data.lockedAmount,
                     loading: buttons[row.original.key].loading,
                     onClick: () => {
-                        // emits('claim', {
-                        //     userPurchaseKey: row.original.key,
-                        //     button: buttons[row.original.key as any],
-                        // });
+                        emits('claim', {
+                            userPurchaseKey: row.original.key,
+                            button: buttons[row.original.key as any],
+                        });
                     },
                 });
             },

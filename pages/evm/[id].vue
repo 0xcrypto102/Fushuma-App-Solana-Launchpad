@@ -16,7 +16,7 @@
                 </div>
                 <div>
                     <UBadge
-                        v-if="icoInfo.data"
+                        v-if="icoInfo.data && status"
                         :color="
                             status.color as
                                 | 'primary'
@@ -43,7 +43,7 @@
                     <AppSpinner :size="4" />
                 </div>
 
-                <div v-else-if="icoInfo.data" class="w-full gap-3">
+                <div v-else-if="icoInfo.data && status" class="w-full gap-3">
                     <AppBuyTokensCard
                         :ico-info="icoInfo"
                         :ico-pot="icoPot"
@@ -102,7 +102,7 @@
 <script setup lang="ts">
     // import { SolanaIcoLaunchpad } from '@/js/ico';
     import { DataWrapper } from '@/types/DataWrapper';
-    import { fetchICO, getMetaMaskEthereum, proxyAddress, getBuyHistory } from '~/js/ico-evm';
+    import { fetchICO, getMetaMaskEthereum, proxyAddress, getBuyHistory, getVestingInfoAsPurchases, proxyAsLaunchpad } from '~/js/ico-evm';
     import { type IIcoInfo, type IUserPurchaseWithKey } from '~/types/Ico';
     import AppBuyTokensCard from '~/components/AppBuyTokensCard.vue';
     import AppBonusTokensCard from '~/components/AppBonusTokensCard.vue';
@@ -110,6 +110,9 @@
     import { getStatus, IcoStatus } from '~/js/utils';
     import { ethers } from 'ethers';
     import LaunchpadABI from '@/abis/Launchpad.json';
+    import { token } from '@coral-xyz/anchor/dist/cjs/utils';
+    import type { IClaimContext } from '~/components/AppUserPurchasesTable.vue';
+    import VestingImplementationABI from '@/abis/VestingImplementation.json';
 
     const userPurchases = ref(new DataWrapper<IUserPurchaseWithKey[]>());
 
@@ -144,31 +147,46 @@
     });
 
     const status = computed(() => {
+        if(!icoInfo.value.data) return null;
+
         return getStatus(
             icoInfo.value.data?.isClosed,
             icoInfo.value.data?.amount,
             icoInfo.value.data?.totalSold,
-            icoInfo.value.data?.startDate,
-            Date.now(),
-            icoInfo.value.data?.endDate,
+            icoInfo.value.data?.startDate.toString(),
+            Date.now().toString(),
+            icoInfo.value.data?.endDate.toString(),
         );
     });
 
     const currentPrice = ref(new DataWrapper<number>());
     const availableAmount = ref(new DataWrapper<number>());
 
-    const getBuyHisotryByUser = async() => {
+    const getBuyHistoryByUser = async() => {
         try {
+            if (!ethAddress.value) {
+                console.error("No Ethereum address found");
+                return;
+            }
+
+            if(!icoInfo.value.data) return null;
+
             const id = icoPot.value.toString().split("-")[1];
-            const history = await getBuyHistory(ethAddress.value, id, icoInfo.value.data.unlockPercentage/100);
-            console.log("history->", history);
-            userPurchases.value.setData(history);
+            const vestingContractAddress = icoInfo.value.data?.vestingContracts;
+            if (!vestingContractAddress) {
+                console.error("No vesting contract address found");
+                return;
+            }
+            const data = await getVestingInfoAsPurchases(vestingContractAddress, ethAddress.value, id, icoInfo.value.data.unlockPercentage/100);
+            userPurchases.value.setData(data);
         } catch (error) {
             console.error("error: ", error);
         }
     }
 
     const fetchCurrentPrice = async () => {
+        if(!status.value) return null;
+        
         if (
             (icoInfo.value.data && status.value.status === IcoStatus.Live) ||
             status.value.status === IcoStatus.Upcoming
@@ -202,8 +220,8 @@
 
                 await fetchCurrentPrice();
 
-                // ✅ Now it's safe to call getBuyHisotryByUser
-                await getBuyHisotryByUser();
+                // ✅ Now it's safe to call getBuyHistoryByUser
+                await getBuyHistoryByUser();
             } catch (e) {
                 console.log(e);
             }
@@ -211,6 +229,27 @@
             icoInfo.value.clear();
         }
     };
+
+    const claimTokens = async ({ userPurchaseKey, button }: IClaimContext) => {
+        try {
+            if(!icoInfo.value.data?.vestingContracts) return null;
+            button.loading = true;
+            const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
+            await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+            const signer = await provider.getSigner();
+
+            console.log(icoInfo.value);
+            const vesting = new ethers.Contract(icoInfo.value.data?.vestingContracts, VestingImplementationABI, signer);
+
+            const tx = await vesting.claim(); // or .claimBehalf(user)
+            await tx.wait();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            button.loading = false;
+        }
+        };
+
 
     const handleRescueTokens = async() => {
         try {

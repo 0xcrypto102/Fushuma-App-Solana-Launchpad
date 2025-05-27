@@ -6,7 +6,7 @@
   >
     <Icon icon="mdi:wallet" class="w-5 h-5" />
     <span>
-      {{ shortEthAddress || shortSolAddress || 'Connect Wallet' }} {{walletType.value}}
+      {{ shortEthAddress || shortSolAddress || 'Connect Wallet' }}
     </span>
   </button>
 
@@ -27,7 +27,7 @@
         <!-- Detected Wallets -->
         <div v-for="wallet in detectedWallets" :key="wallet.name">
           <button
-            @click="selectWallet(wallet.type)"
+            @click="selectWallet(wallet.type as 'evm'|'solana', wallet.name)"
             class="flex items-center justify-between w-full px-4 py-2 text-sm  rounded-md hover:bg-gray-100"
           >
             <span>{{ wallet.name }}</span>
@@ -66,6 +66,7 @@
 import { ref, computed } from 'vue';
 import { Icon } from '@iconify/vue';
 import { useWallet } from 'solana-wallets-vue';
+import { nextTick, onMounted } from 'vue';
 
 const showModal = ref(false);
 const showAllWallets = ref(false);
@@ -73,7 +74,7 @@ const walletType = ref<string>("evm");
 const ethAddress = ref<string | null>(null);
 const solAddress = ref<string | null>(null);
 
-const { publicKey, connect: connectSolanaWallet } = useWallet();
+const { publicKey, select,wallet, wallets } = useWallet();
 
 // Shortened display
 const shortEthAddress = computed(() =>
@@ -83,37 +84,47 @@ const shortSolAddress = computed(() =>
   (solAddress.value && walletType.value == "solana") ? `Solana ${solAddress.value.slice(0, 4)}...${solAddress.value.slice(-4)}` : ''
 );
 
-const setupMetaMaskEvents = () => {
-  const ethereum = (window as any).ethereum;
-  if (ethereum && ethereum.on) {
-    ethereum.on('accountsChanged', (accounts: string[]) => {
+onMounted(() => {
+  const metamask = getMetaMaskProvider();
+  if (metamask && metamask.on) {
+    metamask.on('accountsChanged', (accounts: string[]) => {
       ethAddress.value = accounts[0] || null;
-      walletType.value = accounts[0] ? 'evm' : '';
-      console.log('MetaMask changed to:', ethAddress.value);
+      walletType.value = accounts.length > 0 ? 'evm' : '';
+    });
+
+    // Optional: handle network changes
+    metamask.on('chainChanged', (chainId: string) => {
+      console.log('[MetaMask] Chain changed:', chainId);
+      window.location.reload(); // reload to reinitialize provider state
     });
   }
-};
+});
 
 
-// Detection
-const metaMaskDetected = computed(() => {
+function getMetaMaskProvider(): any {
   const { ethereum } = window as any;
-  if (ethereum?.providers?.length) {
-    return ethereum.providers.some((p: any) => p.isMetaMask);
-  }
-  return !!ethereum?.isMetaMask;
-});
+  if (!ethereum) return null;
 
-const phantomDetected = computed(() => {
-  const { solana } = window as any;
-  return !!solana?.isPhantom;
-});
+  if (ethereum.providers?.length) {
+    return ethereum.providers.find((p: any) => p.isMetaMask);
+  }
+
+  return ethereum?.isMetaMask ? ethereum : null;
+}
+
 
 const detectedWallets = computed(() => {
-  const wallets = [];
-  if (metaMaskDetected.value) wallets.push({ name: 'MetaMask', type: 'evm' });
-  if (phantomDetected.value) wallets.push({ name: 'Phantom', type: 'solana' });
-  return wallets;
+  const detectedWallets = [];
+  for (const wallet of wallets.value) {
+    if (wallet.readyState == 'Installed') {
+      detectedWallets.push({
+        name: wallet.adapter.name,
+        type: wallet.adapter.name == "MetaMask" ? "evm" : "solana"
+      });
+    }
+  }
+
+  return detectedWallets;
 });
 
 const undetectedWallets = computed(() => {
@@ -129,7 +140,7 @@ const undetectedWallets = computed(() => {
 });
 
 // Connect wallet
-const selectWallet = async (type: 'evm' | 'solana') => {
+const selectWallet = async (type: 'evm' | 'solana', walletName: any) => {
   showModal.value = false;
   if (type === 'evm') {
     try {
@@ -138,17 +149,31 @@ const selectWallet = async (type: 'evm' | 'solana') => {
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
       ethAddress.value = accounts[0];
       walletType.value = "evm";
-      setupMetaMaskEvents();
     } catch (err) {
       alert('MetaMask connect failed.');
     }
   } else if (type === 'solana') {
     try {
-      const { solana } = window as any;
-      await solana.connect();
-      console.log('Connected Solana wallet:', solana.publicKey.toString());
-      solAddress.value = solana.publicKey.toString(); // manually assign
-      walletType.value = "solana"
+       console.log("Selected wallet:", walletName);
+      select(walletName); // switches to the selected Solana wallet
+
+      // Optional: wait a tick in case UI updates lag
+      await nextTick();
+
+      // Wait until the publicKey is available
+      let retries = 10;
+      while (!publicKey.value && retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        retries--;
+      }
+
+      if (publicKey.value) {
+        solAddress.value = publicKey.value.toString();
+        walletType.value = 'solana';
+        console.log('✅ Connected Solana wallet:', solAddress.value);
+      } else {
+        console.warn('⚠️ publicKey not available after wallet selection.');
+      }
     } catch (err) {
       alert('Solana connect failed.');
     }

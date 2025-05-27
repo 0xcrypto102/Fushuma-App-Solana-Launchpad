@@ -46,4 +46,5 @@ export interface IIcoInfo {
     vestingPercentage: number;
     vestingInterval: number;
     purchaseSeqNum: number;
+    vestingContracts?: string;
 }
