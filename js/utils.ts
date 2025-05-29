@@ -62,12 +62,12 @@ export const getStatus = (
             status: IcoStatus.SoldOut,
             color: 'warning',
         };
-    } else if (startDate > now) {
+    } else if (Number(startDate) > Number(now)) {
         return {
             status: IcoStatus.Upcoming,
             color: 'warning',
         };
-    } else if (!endDate || endDate > now) {
+    } else if (!Number(endDate) || Number(endDate) > Number(now)) {
         return {
             status: IcoStatus.Live,
             color: 'success',

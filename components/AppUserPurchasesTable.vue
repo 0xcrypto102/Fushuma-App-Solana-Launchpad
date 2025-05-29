@@ -52,11 +52,7 @@
         if (!buyDate) {
             return false;
         }
-        if (isNaN(new Date(buyDate).getTime())) {
-            return false;
-        }
-
-        return new Date(buyDate + (ico?.cliffPeriod ?? 0) * 1000).getTime() > Date.now();
+        return new Date(Number(buyDate) + (ico?.cliffPeriod ?? 0) * 1000).getTime() > Date.now();
     };
 
     const columns: TableColumn<IUserPurchaseWithKey>[] = [

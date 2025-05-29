@@ -121,11 +121,48 @@
 
     onMounted(async () => {
         const provider = new ethers.BrowserProvider(getMetaMaskEthereum());
-        await provider.send("eth_requestAccounts", []); // prompts MetaMask connect
+        await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
         ethAddress.value = signer.address;
+        console.log("eth address", ethAddress.value);
+
+        // Load data initially
         fetchData();
+       
+        const metamask = getMetaMaskProvider();
+        if (metamask && metamask.on) {
+            metamask.on('accountsChanged', handleAccountsChanged);
+            // Optional: handle network changes
+            metamask.on('chainChanged', (chainId: string) => {
+                console.log('[MetaMask] Chain changed:', chainId);
+                window.location.reload(); // reload to reinitialize provider state
+            });
+        }
     });
+
+    function getMetaMaskProvider(): any {
+        const { ethereum } = window as any;
+        if (!ethereum) return null;
+
+        if (ethereum.providers?.length) {
+            return ethereum.providers.find((p: any) => p.isMetaMask);
+        }
+
+        return ethereum?.isMetaMask ? ethereum : null;
+    }
+
+    const handleAccountsChanged = async (accounts: string[]) => {
+        if (accounts.length === 0) {
+            ethAddress.value = null;
+            icoInfo.value.clear();
+            userPurchases.value.clear();
+            return;
+        }
+        ethAddress.value = accounts[0];
+        console.log("eth address", ethAddress.value);
+
+        await fetchData();
+    };
 
     const hasConnectedWallet = computed(() => {
         return ethAddress.value;
@@ -162,7 +199,7 @@
     const currentPrice = ref(new DataWrapper<number>());
     const availableAmount = ref(new DataWrapper<number>());
 
-    const getBuyHistoryByUser = async() => {
+    const fetchUserPurchases = async() => {
         try {
             if (!ethAddress.value) {
                 console.error("No Ethereum address found");
@@ -178,6 +215,7 @@
                 return;
             }
             const data = await getVestingInfoAsPurchases(vestingContractAddress, ethAddress.value, id, icoInfo.value.data.unlockPercentage/100);
+            console.log(data);
             userPurchases.value.setData(data);
         } catch (error) {
             console.error("error: ", error);
@@ -220,8 +258,8 @@
 
                 await fetchCurrentPrice();
 
-                // ✅ Now it's safe to call getBuyHistoryByUser
-                await getBuyHistoryByUser();
+                // ✅ Now it's safe to call fetchUserPurchases
+                await fetchUserPurchases();
             } catch (e) {
                 console.log(e);
             }

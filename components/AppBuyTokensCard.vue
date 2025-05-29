@@ -264,7 +264,11 @@
                             console.log("Transaction hash is", tx.hash);
                         }
                     }
-                    
+                    emits('fetch:data');
+                    emits('fetch:purchases');
+                    fetchBalances();
+                    getPrice();
+                    resetValues();
                 } catch (error) {
                     console.log("error", error);
                 }

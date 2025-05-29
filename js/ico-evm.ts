@@ -221,7 +221,7 @@ export async function getVestingInfoAsPurchases(
       seed: index, // can use `tx hash` or index if not available
       buyer: userAddress,
       ico: ico, // replace if you know it externally
-      buyAmount: Number((unlockedPortion * 100 / unlockPercentage).toFixed(2)),
+      buyAmount: unlockPercentage == 0? 0: Number((unlockedPortion * 100 / unlockPercentage).toFixed(2)),
       buyDate: buyDate,
       bonus: 0, // no bonus info from vesting contract
       lockedAmount: unlockedPortion,
