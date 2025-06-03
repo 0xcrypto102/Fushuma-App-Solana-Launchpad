@@ -84,17 +84,17 @@
 
         <div>
           <label class="block font-medium">Bonus Percentage (e.g. 2500 for 25%)</label>
-          <input v-model="icoForm.bonusPercentage" type="text" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
+          <input v-model="icoForm.bonusPercentage" type="number" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
         </div>
 
         <div>
           <label class="block font-medium">Bonus Activator (e.g. 1000 for 10%)</label>
-          <input v-model="icoForm.bonusActivator" type="text" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
+          <input v-model="icoForm.bonusActivator" type="number" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
         </div>
 
         <div>
           <label class="block font-medium">Unlock Percentage (e.g. 5000 = 50%)</label>
-          <input v-model="icoForm.unlockPercentage" type="text" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
+          <input v-model="icoForm.unlockPercentage" type="number" min="0" max="10000" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
         </div>
 
         <div>
@@ -104,7 +104,7 @@
 
         <div>
           <label class="block font-medium">Vesting Percentage (e.g. 1000 = 10%)</label>
-          <input v-model="icoForm.vestingPercentage" type="text" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
+          <input v-model="icoForm.vestingPercentage" type="number" min="100" max="10000" class="input" className="border border-gray-300 p-2 rounded-md w-full"/>
         </div>
 
         <div>
@@ -141,16 +141,16 @@
     paymentTokenSelection: 'fuma', // dropdown selection
     customPaymentToken: '',        // manual input
     amount: '',
-    startPrice: '',
+    startPrice: '0.01',
     endPrice: '0',
     startDate: inOneHour,
     endDate: '',
     bonusReserve: '',
-    bonusPercentage: '',
-    bonusActivator: '',
-    unlockPercentage: '',
+    bonusPercentage: 2500,
+    bonusActivator: 1000,
+    unlockPercentage: 5000,
     cliffPeriod: 60,
-    vestingPercentage: '',
+    vestingPercentage: 1000,
     vestingInterval: 60
   });
 
