@@ -212,6 +212,16 @@
 
     if (isNaN(startPrice) || isNaN(endPrice)) return "Start and End price must be valid numbers.";
 
+    const vestingPercentage = icoForm.value.vestingPercentage;
+    if (isNaN(vestingPercentage) || vestingPercentage < 100 || vestingPercentage > 10000) {
+      return "Vesting percentage must be between 1% and 100%.";
+    }
+
+    const cliffPeriod = icoForm.value.cliffPeriod;
+    if (isNaN(cliffPeriod) || cliffPeriod < 60) {
+      return "Cliff period must be greater than 60secounds.";
+    }
+    
     return null;
   }
 
