@@ -221,7 +221,12 @@
     if (isNaN(cliffPeriod) || cliffPeriod < 60) {
       return "Cliff period must be greater than 60secounds.";
     }
-    
+
+    const vestingInterval = icoForm.value.vestingInterval;
+    if (isNaN(vestingInterval) || vestingInterval < 60) {
+      return "Vesting interval must be greater than 60 seconds.";
+    }
+
     return null;
   }
 
