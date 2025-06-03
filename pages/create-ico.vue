@@ -149,9 +149,9 @@
     bonusPercentage: '',
     bonusActivator: '',
     unlockPercentage: '',
-    cliffPeriod: 60 * 60 * 24 * 30,
+    cliffPeriod: 60,
     vestingPercentage: '',
-    vestingInterval: 60 * 60 * 24 * 30
+    vestingInterval: 60
   });
 
 
