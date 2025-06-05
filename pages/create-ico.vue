@@ -219,7 +219,7 @@
 
     const cliffPeriod = icoForm.value.cliffPeriod;
     if (isNaN(cliffPeriod) || cliffPeriod < 60) {
-      return "Cliff period must be greater than 60 secounds.";
+      return "Cliff period must be greater than 60 seconds.";
     }
 
     const vestingInterval = icoForm.value.vestingInterval;
